@@ -29,7 +29,7 @@ for fish_label in fish_labels:
     #PBS -q batch
     #PBS -l nodes=1:ppn=28:Intel
     #PBS -l walltime=48:00:00
-    #PBS -l mem=62gb
+    #PBS -l mem=60gb
     #PBS -M jasonneuswanger@gmail.com
     #PBS -m ae
     
