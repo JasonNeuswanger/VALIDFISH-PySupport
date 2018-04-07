@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 
 batch_reps = 20  # Number of times to check each grey wolf parameter set for each fish
 
@@ -21,7 +22,7 @@ fish_labels = [ '2015-06-10-1 Chena - Chinook Salmon (id #1)',
                ]
 
 for fish_label in fish_labels:
-    batch_name = fish_label
+    batch_name = re.sub(r'\W+', '', fish_label)
     batch_file_contents = """
     #PBS -S /bin/bash
     #PBS -N {1}
@@ -41,8 +42,8 @@ for fish_label in fish_labels:
     echo "Nodes:  $(cat $PBS_NODEFILE | sort -u | tr '\n' ' ')"
     echo
     
-    python grey_wolf_test.py {0} '{1}'
-    """.format(batch_reps, batch_name)
+    python grey_wolf_test.py {0} '{2}'
+    """.format(batch_reps, batch_name, fish_label)
 
     with open('{0}.sh'.format(batch_name), 'w') as batch_file:
         batch_file.write(batch_file_contents)
