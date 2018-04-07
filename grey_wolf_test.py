@@ -92,18 +92,18 @@ else:
 
 candidate_strategies = [  # never want the last two to be true at the same time
     # (False, True, False, False, False, True),
-    (False, True, False, False, False, False),
-    (False, False, True, False, False, False),
+    # (False, True, False, False, False, False),
+    # (False, False, True, False, False, False),
     (False, True, True, False, False, True),
     (False, True, True, False, False, False),
     (False, False, False, False, False, True)
 ]
 
-def test_algorithm(nreps=1):
+def test_algorithm(fish_label, nreps=1):
     niters = 1000
     pack_size = 26
     forager = ftf.FieldTestFish(fish_label)
-    with open(CONVERGENCE_RESULTS_FOLDER + 'GWO Convergence ' + fish_label + '.csv', 'a') as csvfile:
+    with open(CONVERGENCE_RESULTS_FOLDER + 'GWO convergence ' + fish_label + '.csv', 'a') as csvfile:
         writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
         for rep in range(nreps):
             for strategy in candidate_strategies:
@@ -119,16 +119,25 @@ def test_algorithm(nreps=1):
 # fish_label = '2016-08-14-2 Chena - Chinook Salmon (id #1)'
 # fish_label = '2015-07-10-1 Chena - Chinook Salmon (id #4)'
 # fish_label = '2015-07-15-1 Panguingue - Dolly Varden (id #1)'
-for i in range(10):
-    fish_label = '2016-08-14-2 Chena - Chinook Salmon (id #1)'
-    test_algorithm(1)
-    fish_label = '2015-07-10-1 Chena - Chinook Salmon (id #4)'
-    test_algorithm(1)
-    fish_label = '2015-07-15-1 Panguingue - Dolly Varden (id #1)'
-    test_algorithm(1)
-    fish_label = '2016-06-03-1 Chena - Chinook Salmon (id #1)'
-    test_algorithm(1)
-    fish_label = '2016-08-07-2 Panguingue - Dolly Varden (id #1)'
-    test_algorithm(1)
-    fish_label = '2015-07-31-1 Clearwater - Arctic Grayling (id #1)'
-    test_algorithm(1)
+
+# for i in range(10):
+#     fish_label = '2016-08-14-2 Chena - Chinook Salmon (id #1)'
+#     test_algorithm(1)
+#     fish_label = '2015-07-10-1 Chena - Chinook Salmon (id #4)'
+#     test_algorithm(1)
+#     fish_label = '2015-07-15-1 Panguingue - Dolly Varden (id #1)'
+#     test_algorithm(1)
+#     fish_label = '2016-06-03-1 Chena - Chinook Salmon (id #1)'
+#     test_algorithm(1)
+#     fish_label = '2016-08-07-2 Panguingue - Dolly Varden (id #1)'
+#     test_algorithm(1)
+#     fish_label = '2015-07-31-1 Clearwater - Arctic Grayling (id #1)'
+#     test_algorithm(1)
+
+nreps = sys.argv[1]
+fish_label_arg = sys.argv[2]
+test_algorithm(fish_label_arg, nreps)
+
+# USAGE:
+# On Mac, do 'source activate driftmodelenv' in terminal if not done already.
+# Then python grey_wolf_test.py 2 '2016-08-12-1 Chena - Chinook Salmon (id #1)')
