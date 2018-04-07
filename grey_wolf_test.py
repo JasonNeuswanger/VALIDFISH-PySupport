@@ -120,10 +120,16 @@ test_algorithm(1)
 # fish_label = '2016-08-14-2 Chena - Chinook Salmon (id #1)'
 # fish_label = '2015-07-10-1 Chena - Chinook Salmon (id #4)'
 # fish_label = '2015-07-15-1 Panguingue - Dolly Varden (id #1)'
-# for i in range(10):
-#     fish_label = '2016-06-03-1 Chena - Chinook Salmon (id #1)'
-#     test_algorithm(2)
-#     fish_label = '2016-08-07-2 Panguingue - Dolly Varden (id #1)'
-#     test_algorithm(1)
-#     fish_label = '2015-07-31-1 Clearwater - Arctic Grayling (id #1)'
-#     test_algorithm(1)
+for i in range(10):
+    fish_label = '2016-08-14-2 Chena - Chinook Salmon (id #1)'
+    test_algorithm(1)
+    fish_label = '2015-07-10-1 Chena - Chinook Salmon (id #4)'
+    test_algorithm(1)
+    fish_label = '2015-07-15-1 Panguingue - Dolly Varden (id #1)'
+    test_algorithm(1)
+    fish_label = '2016-06-03-1 Chena - Chinook Salmon (id #1)'
+    test_algorithm(1)
+    fish_label = '2016-08-07-2 Panguingue - Dolly Varden (id #1)'
+    test_algorithm(1)
+    fish_label = '2015-07-31-1 Clearwater - Arctic Grayling (id #1)'
+    test_algorithm(1)
