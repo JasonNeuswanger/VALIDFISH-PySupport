@@ -27,7 +27,7 @@ for fish_label in fish_labels:
     #PBS -S /bin/bash
     #PBS -N {1}
     #PBS -q batch
-    #PBS -l nodes=1:ppn=28:intel
+    #PBS -l nodes=1:ppn=28:Intel
     #PBS -l walltime=48:00:00
     #PBS -l mem=2gb
     #PBS -M jasonneuswanger@gmail.com
