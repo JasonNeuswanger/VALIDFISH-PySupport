@@ -12,7 +12,7 @@ if IS_MAC:
     FIELD_DATA_FILE = "/Users/Jason/Dropbox/Drift Model Project/Data/Model_Testing_Data.json"
 else:
     PYVALIDFISH_FILE = "/home/alaskajn/VALIDFISH/VALIDFISH/build/pyvalidfish.cpython-35m-x86_64-linux-gnu.so"
-    INTERPOLATION_ROOT = "/home/alaskjn/maneuver-model-tables/"
+    INTERPOLATION_ROOT = "/home/alaskajn/maneuver-model-tables/"
     FIELD_DATA_FILE = "/home/alaskajn/VALIDFISH/PySupport/Model_Testing_Data.json"
 
 spec = importlib.util.spec_from_file_location("pyvalidfish",  PYVALIDFISH_FILE)
