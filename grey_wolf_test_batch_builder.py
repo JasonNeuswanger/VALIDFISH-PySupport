@@ -22,14 +22,14 @@ fish_labels = [ '2015-06-10-1 Chena - Chinook Salmon (id #1)',
                ]
 
 for fish_label in fish_labels:
-    batch_name = re.sub(r'\W+', '', fish_label)
+    batch_name = re.sub(r'\W+', '', fish_label)  # strip out non-alphanumeric characters from fish label for job name
     batch_file_contents = """
     #PBS -S /bin/bash
     #PBS -N {1}
     #PBS -q batch
     #PBS -l nodes=1:ppn=28:Intel
     #PBS -l walltime=48:00:00
-    #PBS -l mem=64gb
+    #PBS -l mem=62gb
     #PBS -M jasonneuswanger@gmail.com
     #PBS -m ae
     
