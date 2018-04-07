@@ -29,7 +29,7 @@ for fish_label in fish_labels:
     #PBS -q batch
     #PBS -l nodes=1:ppn=28:intel
     #PBS -l walltime=48:00:00
-    #PBS -l mem=64gb
+    #PBS -l mem=2gb
     #PBS -M jasonneuswanger@gmail.com
     #PBS -m ae
     
@@ -48,4 +48,4 @@ for fish_label in fish_labels:
     with open('{0}.sh'.format(batch_name), 'w') as batch_file:
         batch_file.write(batch_file_contents)
 
-    os.system("'qsub {0}.sh'".format(batch_name))
+    os.system("qsub '{0}.sh'".format(batch_name))
