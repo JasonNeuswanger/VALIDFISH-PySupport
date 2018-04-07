@@ -134,7 +134,7 @@ def test_algorithm(fish_label, nreps=1):
 #     fish_label = '2015-07-31-1 Clearwater - Arctic Grayling (id #1)'
 #     test_algorithm(1)
 
-nreps = sys.argv[1]
+nreps = int(sys.argv[1])
 fish_label_arg = sys.argv[2]
 test_algorithm(fish_label_arg, nreps)
 
