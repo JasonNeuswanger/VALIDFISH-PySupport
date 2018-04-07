@@ -29,7 +29,7 @@ for fish_label in fish_labels:
     #PBS -q batch
     #PBS -l nodes=1:ppn=28:Intel
     #PBS -l walltime=48:00:00
-    #PBS -l mem=2gb
+    #PBS -l mem=64gb
     #PBS -M jasonneuswanger@gmail.com
     #PBS -m ae
     
@@ -45,7 +45,7 @@ for fish_label in fish_labels:
     python grey_wolf_test.py {0} '{2}'
     """.format(batch_reps, batch_name, fish_label)
 
-    with open('{0}.sh'.format(batch_name), 'w') as batch_file:
+    with open('{0}.sh'.format('batches/' + batch_name), 'w') as batch_file:
         batch_file.write(batch_file_contents)
 
-    os.system("qsub '{0}.sh'".format(batch_name))
+    os.system("qsub 'batches/{0}.sh'".format(batch_name))
