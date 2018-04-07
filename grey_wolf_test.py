@@ -116,7 +116,6 @@ def test_algorithm(nreps=1):
 
 # fish_label = '2016-07-09-1 Clearwater - Arctic Grayling (id #5)'
 # fish_label = '2016-08-12-1 Chena - Chinook Salmon (id #1)' # -- BAD FISH, lots of infinite NREIs
-test_algorithm(1)
 # fish_label = '2016-08-14-2 Chena - Chinook Salmon (id #1)'
 # fish_label = '2015-07-10-1 Chena - Chinook Salmon (id #4)'
 # fish_label = '2015-07-15-1 Panguingue - Dolly Varden (id #1)'
