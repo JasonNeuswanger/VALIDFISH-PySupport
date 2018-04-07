@@ -7,17 +7,17 @@ import sys
 IS_MAC = (sys.platform == 'darwin')
 
 if IS_MAC:
-    CFORAGER_FILE = "/Users/Jason/Dropbox/Drift Model Project/Calculations/driftmodelc/cmake-build-debug/driftforager.cpython-35m-darwin.so"
+    PYVALIDFISH_FILE = "/Users/Jason/Dropbox/Drift Model Project/Calculations/VALIDFISH/VALIDFISH/cmake-build-release/pyvalidfish.cpython-35m-darwin.so"
     INTERPOLATION_ROOT = "/Users/Jason/Dropbox/Drift Model Project/Calculations/driftmodeldev/maneuver-model-tables/"
     FIELD_DATA_FILE = "/Users/Jason/Dropbox/Drift Model Project/Data/Model_Testing_Data.json"
 else:
-    CFORAGER_FILE = ""
-    INTERPOLATION_ROOT = ""
-    FIELD_DATA_FILE = ""
+    PYVALIDFISH_FILE = "/home/alaskajn/VALIDFISH/VALIDFISH/build/pyvalidfish.cpython-35m-x86_64-linux-gnu.so"
+    INTERPOLATION_ROOT = "/home/alaskjn/maneuver-model-tables/"
+    FIELD_DATA_FILE = "/home/alaskajn/VALIDFISH/PySupport/Model_Testing_Data.json"
 
-spec = importlib.util.spec_from_file_location("driftforager",  CFORAGER_FILE)
-df = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(df)
+spec = importlib.util.spec_from_file_location("pyvalidfish",  PYVALIDFISH_FILE)
+vf = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(vf)
 json_data = json.load(open(FIELD_DATA_FILE, 'r'))
 
 objective_weights = {
@@ -39,7 +39,7 @@ class FieldTestFish:
         self.species = data['species']
         self.label = data['label']
         self.fork_length_cm = data['fork_length_cm']
-        self.cforager = df.Forager(
+        self.cforager = vf.Forager(
             data['fork_length_cm'],                 # fork length (cm)
             data['mass_g'],                         # mass (g)
             initial_radius,                         # search radius (m)
@@ -157,6 +157,6 @@ class FieldTestFish:
         return objective_value
 
     def optimize(self, iterations, pack_size, verbose=True, use_chaos=False, use_dynamic_C=False, use_exponential_decay=False, use_levy=False, use_only_alpha=False, use_weighted_alpha=True):
-        opt = df.Optimizer(self.cforager, iterations, pack_size, verbose)
+        opt = vf.Optimizer(self.cforager, iterations, pack_size, verbose)
         opt.set_algorithm_options(use_chaos, use_dynamic_C, use_exponential_decay, use_levy, use_only_alpha, use_weighted_alpha)
         return opt.optimize_forager()  # returns array of fitnesses by step

@@ -1,7 +1,12 @@
 import csv
+import sys
 import field_test_fish as ftf
 
-# WHERE IS FISH 2015-07-17-3-???
+IS_MAC = (sys.platform == 'darwin')
+if IS_MAC:
+    CONVERGENCE_RESULTS_FOLDER = '/Users/Jason/Dropbox/Drift Model Project/Calculations/GWO convergence/'
+else:
+    CONVERGENCE_RESULTS_FOLDER = '/home/alaskajn/results/GWO Convergence/'
 
 # 2015-06-10-1 Chena - Chinook Salmon (id #1)
 # 2015-06-11-1 Chena - Chinook Salmon (id #1)
@@ -24,6 +29,7 @@ import field_test_fish as ftf
 # 2015-07-16-2 Panguingue - Dolly Varden (id #5)
 # 2015-07-17-1 Panguingue - Dolly Varden (id #1)
 # 2015-07-17-2 Panguingue - Dolly Varden (id #1)
+# 2015-07-17-3 Panguingue - Dolly Varden (id #4)
 # 2015-07-28-1 Clearwater - Arctic Grayling (id #1)
 # 2015-07-29-1 Clearwater - Arctic Grayling (id #3)
 # 2015-07-31-1 Clearwater - Arctic Grayling (id #1)
@@ -85,7 +91,7 @@ import field_test_fish as ftf
 # 2016-08-14-2 Chena - Chinook Salmon (id #1)
 
 candidate_strategies = [  # never want the last two to be true at the same time
-    (False, True, False, False, False, True),
+    # (False, True, False, False, False, True),
     (False, True, False, False, False, False),
     (False, False, True, False, False, False),
     (False, True, True, False, False, True),
@@ -97,7 +103,7 @@ def test_algorithm(nreps=1):
     niters = 1000
     pack_size = 26
     forager = ftf.FieldTestFish(fish_label)
-    with open('/Users/Jason/Dropbox/Drift Model Project/Calculations/GWO convergence5 ' + fish_label + '.csv', 'a') as csvfile:
+    with open(CONVERGENCE_RESULTS_FOLDER + 'GWO Convergence ' + fish_label + '.csv', 'a') as csvfile:
         writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
         for rep in range(nreps):
             for strategy in candidate_strategies:
@@ -106,17 +112,18 @@ def test_algorithm(nreps=1):
                 fitnesses = forager.optimize(niters, pack_size, True, use_chaos, use_dynamic_C, use_exponential_decay, use_levy, use_only_alpha, use_weighted_alpha)
                 writer.writerow([rep] + list(key) + fitnesses)
                 csvfile.flush()
-                print("Completed calculation ", rep+1, " of ", nreps, " for key ", key)
+                print("Completed calculation ", rep+1, " of ", nreps, " for key ", key, " for fish ", fish_label)
 
 # fish_label = '2016-07-09-1 Clearwater - Arctic Grayling (id #5)'
-# fish_label = '2016-08-12-1 Chena - Chinook Salmon (id #1)' # BAD FISH!!
+# fish_label = '2016-08-12-1 Chena - Chinook Salmon (id #1)' # -- BAD FISH, lots of infinite NREIs
+test_algorithm(1)
 # fish_label = '2016-08-14-2 Chena - Chinook Salmon (id #1)'
 # fish_label = '2015-07-10-1 Chena - Chinook Salmon (id #4)'
 # fish_label = '2015-07-15-1 Panguingue - Dolly Varden (id #1)'
-for i in range(3):
-    fish_label = '2016-08-07-2 Panguingue - Dolly Varden (id #1)'
-    test_algorithm(2)
-    fish_label = '2016-06-03-1 Chena - Chinook Salmon (id #1)'
-    test_algorithm(2)
-    fish_label = '2015-07-31-1 Clearwater - Arctic Grayling (id #1)'
-    test_algorithm(2)
+# for i in range(10):
+#     fish_label = '2016-06-03-1 Chena - Chinook Salmon (id #1)'
+#     test_algorithm(2)
+#     fish_label = '2016-08-07-2 Panguingue - Dolly Varden (id #1)'
+#     test_algorithm(1)
+#     fish_label = '2015-07-31-1 Clearwater - Arctic Grayling (id #1)'
+#     test_algorithm(1)
