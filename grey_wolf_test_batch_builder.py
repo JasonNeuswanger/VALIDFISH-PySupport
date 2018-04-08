@@ -2,7 +2,7 @@ import os
 import sys
 import re
 
-batch_reps = 20  # Number of times to check each grey wolf parameter set for each fish
+batch_reps = 60  # Number of times to check each grey wolf parameter set for each fish
 
 fish_labels = [ '2015-06-10-1 Chena - Chinook Salmon (id #1)',
                 '2015-06-16-2 Panguingue - Dolly Varden (id #2)',
@@ -33,7 +33,7 @@ for fish_label in fish_labels:
     #PBS -M jasonneuswanger@gmail.com
     #PBS -m ae
     
-    cd $PBS_O_WORKDIR
+    # cd $PBS_O_WORKDIR
     
     echo
     echo "Job ID: $PBS_JOBID"
