@@ -33,7 +33,7 @@ for fish_label in fish_labels:
     #PBS -M jasonneuswanger@gmail.com
     #PBS -m ae
     
-    # cd $PBS_O_WORKDIR
+    cd $PBS_O_WORKDIR
     
     echo
     echo "Job ID: $PBS_JOBID"
