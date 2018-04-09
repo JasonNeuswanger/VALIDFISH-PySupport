@@ -13,7 +13,7 @@ invalid_objective_function_value = -1000000  # used to replace inf, nan, or extr
 if scaling == 'linear':
     def f(delta_0, alpha_0, beta, Z_0, c_1, discriminability, sigma_t, tau_0):
         test_fish.cforager.modify_parameters(delta_0, alpha_0, beta, Z_0, c_1, discriminability, sigma_t, tau_0)
-        test_fish.optimize(500, 15, True, False, False, False, False, False, True)
+        test_fish.optimize(500, 26, True, False, False, False, False, False, True)
         obj = -test_fish.evaluate_fit(verbose=True)
         if np.isfinite(obj) and obj > invalid_objective_function_value:
             return obj
@@ -34,7 +34,11 @@ elif scaling == 'log':
     def f(delta_0, alpha_0, beta, Z_0, c_1, discriminability, sigma_t, tau_0):
         test_fish.cforager.modify_parameters(10**delta_0, 10**alpha_0, 10**beta, 10**Z_0, 10**c_1, discriminability, sigma_t, 10**tau_0)
         test_fish.optimize(500, 26, True, False, False, False, False, False, True)
-        return -test_fish.evaluate_fit(verbose=False)
+        obj = -test_fish.evaluate_fit(verbose=True)
+        if np.isfinite(obj) and obj > invalid_objective_function_value:
+            return obj
+        else:
+            return invalid_objective_function_value
 
     param_limits = {
         'delta_0': (-5, 1),          # delta_0           -- Scales effect of angular size on tau; bigger delta_0 = harder detection.
@@ -75,7 +79,7 @@ def write_maxes_to_file():
     maxes_df = pd.DataFrame(maxes)
     maxes_df.to_csv('/home/alaskajn/results/bayes_opt_test/' + batch_name + '.csv')
 
-bo.maximize(init_points=30, n_iter=0, acq=method1, kappa=5)
+bo.maximize(init_points=10, n_iter=0, acq=method1, kappa=5)
 record_max_entry()
 write_maxes_to_file()
 
