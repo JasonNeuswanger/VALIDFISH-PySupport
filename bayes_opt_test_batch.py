@@ -3,7 +3,7 @@ import field_test_fish
 import pandas as pd
 from bayes_opt import BayesianOptimization  # NEED TO INSTALL THIS
 
-method, scaling, batch_name, fish_label = sys.argv
+dummy, method, scaling, batch_name, fish_label = sys.argv
 n_iterations = 500  # will really be 2x this + initial 30
 
 test_fish = field_test_fish.FieldTestFish(fish_label)
