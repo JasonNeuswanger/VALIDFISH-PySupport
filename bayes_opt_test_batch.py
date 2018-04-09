@@ -1,18 +1,24 @@
 import sys
 import field_test_fish
 import pandas as pd
-from bayes_opt import BayesianOptimization  # NEED TO INSTALL THIS
+import numpy as np
+from bayes_opt import BayesianOptimization
 
 dummy, method, scaling, batch_name, fish_label = sys.argv
 n_iterations = 500  # will really be 2x this + initial 30
 
 test_fish = field_test_fish.FieldTestFish(fish_label)
+invalid_objective_function_value = -1000000  # used to replace inf, nan, or extreme values with something slightly less bad
 
 if scaling == 'linear':
     def f(delta_0, alpha_0, beta, Z_0, c_1, discriminability, sigma_t, tau_0):
         test_fish.cforager.modify_parameters(delta_0, alpha_0, beta, Z_0, c_1, discriminability, sigma_t, tau_0)
         test_fish.optimize(500, 15, True, False, False, False, False, False, True)
-        return -test_fish.evaluate_fit(verbose=True)
+        obj = -test_fish.evaluate_fit(verbose=True)
+        if np.isfinite(obj) and obj > invalid_objective_function_value:
+            return obj
+        else:
+            return invalid_objective_function_value
 
     param_limits = {
         'delta_0': (0.00001, 2.0),          # delta_0           -- Scales effect of angular size on tau; bigger delta_0 = harder detection.
@@ -43,6 +49,8 @@ elif scaling == 'log':
 
 bo = BayesianOptimization(f, param_limits)
 
+method1 = None
+method2 = None
 if method == 'ei':
     method1 = 'ei'
     method2 = 'ei'
@@ -63,16 +71,20 @@ def record_max_entry():
     entry['neval'] = bo.space._length
     maxes.append(entry)
 
+def write_maxes_to_file():
+    maxes_df = pd.DataFrame(maxes)
+    maxes_df.to_csv('/home/alaskajn/results/bayes_opt_test/' + batch_name + '.csv')
 
 bo.maximize(init_points=30, n_iter=0, acq=method1, kappa=5)
 record_max_entry()
+write_maxes_to_file()
 
 for i in range(n_iterations):
     bo.maximize(init_points=0, n_iter=1, acq=method1, kappa=5)
     record_max_entry()
     bo.maximize(init_points=0, n_iter=1, acq=method2, kappa=5)
     record_max_entry()
+    if i % 20 == 0:
+        write_maxes_to_file()
 
 
-maxes_df = pd.DataFrame(maxes)
-maxes_df.to_csv('/home/alaskajn/results/bayes_opt_test/' + batch_name + '.csv')

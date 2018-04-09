@@ -56,15 +56,15 @@ maxes_df.to_csv("filename")
 
 bo.maximize(init_points=10, n_iter=0, acq='ei')
 print(bo.res['max'])
-maxes.append(bo.res['max'])
+record_max_entry()
 
-for i in range(25):
+for i in range(250):
     bo.maximize(init_points=0, n_iter=1, acq='ucb', kappa=5)
     print(bo.res['max'])
-    maxes.append(bo.res['max'])
+    record_max_entry()
     bo.maximize(init_points=0, n_iter=1, acq='ei')
     print(bo.res['max'])
-    maxes.append(bo.res['max'])
+    record_max_entry()
 
 
 # Linear-scaled parameter search, after 50 points:
