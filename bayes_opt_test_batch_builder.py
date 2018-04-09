@@ -47,4 +47,4 @@ for fish_label in fish_labels:
 
                 os.system("qsub 'batches/{0}.sh'".format(batch_name))
 
-                start = False
+                # start = False
