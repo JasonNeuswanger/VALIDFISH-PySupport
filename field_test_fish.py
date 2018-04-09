@@ -113,7 +113,8 @@ class FieldTestFish:
         vprint("Focal velocity is predicted {0:.3f}, observed {1:.3f} m/s.".format(predicted_focal_velocity, observed_focal_velocity))
         predicted_proportion_ingested = self.cforager.get_proportion_of_attempts_ingested()
         observed_proportion_ingested = self.fielddata['proportion_of_attempts_ingested']
-        proportion_ingested_part = ((predicted_proportion_ingested - observed_proportion_ingested) ** 2) * objective_weights['proportion_ingested']
+        proportion_ingested_part = (((observed_proportion_ingested - predicted_proportion_ingested) / (
+                    0.5 * (observed_proportion_ingested + predicted_proportion_ingested))) ** 2) * objective_weights['proportion_ingested']
         vprint("Proportion of attempts ingested is predicted {0:.3f}, observed {1:.3f}.".format(predicted_proportion_ingested, observed_proportion_ingested))
         self.calculate_proportion_bins()
         # Detection distance data
