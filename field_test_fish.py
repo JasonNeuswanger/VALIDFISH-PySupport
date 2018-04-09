@@ -35,7 +35,7 @@ class FieldTestFish:
         data = json_data[fish_label]
         initial_radius = data['fork_length_cm'] * 0.01 * 4.  # 3 fork lengths, converted to m
         self.fielddata = data
-        self.color = data['color']
+        self.color = tuple(data['color'])
         self.species = data['species']
         self.label = data['label']
         self.fork_length_cm = data['fork_length_cm']
@@ -104,16 +104,16 @@ class FieldTestFish:
         # Individually important fields
         predicted_fa_rate = self.cforager.get_foraging_attempt_rate()
         observed_fa_rate = self.fielddata['foraging_attempt_rate']
-        objective_value += (((observed_fa_rate - predicted_fa_rate) / (0.5 * (observed_fa_rate + predicted_fa_rate))) ** 2) * objective_weights['foraging_attempt_rate']
+        fa_rate_part = (((observed_fa_rate - predicted_fa_rate) / (0.5 * (observed_fa_rate + predicted_fa_rate))) ** 2) * objective_weights['foraging_attempt_rate']
         vprint("Foraging attempt rate is predicted {0:.3f}, observed {1:.3f} attempts/s.".format(predicted_fa_rate, observed_fa_rate))
         predicted_focal_velocity = self.cforager.get_focal_velocity()
         observed_focal_velocity = self.fielddata['focal_velocity_m_per_s']
-        objective_value += (((observed_focal_velocity - predicted_focal_velocity) / (
+        velocity_part = (((observed_focal_velocity - predicted_focal_velocity) / (
                     0.5 * (observed_focal_velocity + predicted_focal_velocity))) ** 2) * objective_weights['focal_velocity']
         vprint("Focal velocity is predicted {0:.3f}, observed {1:.3f} m/s.".format(predicted_focal_velocity, observed_focal_velocity))
         predicted_proportion_ingested = self.cforager.get_proportion_of_attempts_ingested()
         observed_proportion_ingested = self.fielddata['proportion_of_attempts_ingested']
-        objective_value += ((predicted_proportion_ingested - observed_proportion_ingested) ** 2) * objective_weights['proportion_ingested']
+        proportion_ingested_part = ((predicted_proportion_ingested - observed_proportion_ingested) ** 2) * objective_weights['proportion_ingested']
         vprint("Proportion of attempts ingested is predicted {0:.3f}, observed {1:.3f}.".format(predicted_proportion_ingested, observed_proportion_ingested))
         self.calculate_proportion_bins()
         # Detection distance data
@@ -125,7 +125,7 @@ class FieldTestFish:
             observed = self.fielddata['detection_distance_proportions'][i]
             distance_obj_total += (predicted - observed) ** 2
             vprint("For distance bin {0:.3f} to {1:.3f} m, predicted proportion {2:.3f}, observed proportion {3:.3f}.".format(labelmin, labelmax, predicted, observed))
-        objective_value += (distance_obj_total / len(self.truncated_distance_bins)) * objective_weights['detection_distances_combined']
+        distance_part = (distance_obj_total / len(self.truncated_distance_bins)) * objective_weights['detection_distances_combined']
         # Detection angle data
         angle_obj_total = 0
         for i, dbin in enumerate(self.truncated_angle_bins):
@@ -135,7 +135,7 @@ class FieldTestFish:
             observed = self.fielddata['detection_angle_proportions'][i]
             angle_obj_total += (predicted - observed) ** 2
             vprint("For angle bin {0:.3f} to {1:.3f} radians, predicted proportion {2:.3f}, observed proportion {3:.3f}.".format(labelmin, labelmax, predicted, observed))
-        objective_value += (angle_obj_total / len(self.truncated_angle_bins)) * objective_weights['detection_angles_combined']
+        angle_part = (angle_obj_total / len(self.truncated_angle_bins)) * objective_weights['detection_angles_combined']
         # Diet data
         dietdata = [item for item in self.fielddata['diet_by_category'].values() if item['number'] is not None]
         diet_obj_total = 0
@@ -148,12 +148,14 @@ class FieldTestFish:
                 diet_obj_count += 1
                 diet_obj_total += (predicted - observed) ** 2
                 vprint("For diet category '{0}', predicted proportion {1:.3f}, observed proportion {2:.3f}.".format(category_name, predicted, observed))
-        objective_value += (diet_obj_total / diet_obj_count) * objective_weights['diet_proportions_combined']
+        diet_part = (diet_obj_total / diet_obj_count) * objective_weights['diet_proportions_combined']
         # NREI -- not used in objective function, just for curiosity/printing.
         predicted_NREI = self.cforager.NREI()
         observed_NREI = self.fielddata['empirical_NREI_J_per_s']
+        objective_value = fa_rate_part + velocity_part + proportion_ingested_part + distance_part + angle_part + diet_part
         vprint("NREI: predicted {0:.5f} J/s, observed estimate {1:.5f} J/s.".format(predicted_NREI, observed_NREI))
-        vprint("Objective function value is {0:.5f}.".format(objective_value))
+        vprint("Objective function value is {0:.5f}. (Contributions: attempt rate {1:.3f}, velocity {2:.3f}, ingestion {3:.3f}, distance {4:.3f}, angle {5:.3f}, diet {6:.3f})".format(
+            objective_value, fa_rate_part, velocity_part, proportion_ingested_part, distance_part, angle_part, diet_part))
         return objective_value
 
     def optimize(self, iterations, pack_size, verbose=True, use_chaos=False, use_dynamic_C=False, use_exponential_decay=False, use_levy=False, use_only_alpha=False, use_weighted_alpha=True):

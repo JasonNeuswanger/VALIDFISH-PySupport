@@ -1,3 +1,11 @@
+# Notes
+
+## Parameter limit rationales
+
+* delta_0: Angular resolution ranges from 0.01 radians (smallest Chinook) to 0.005 radians (largest Grayling), so angular size should greatly increase tau near those boundaries.
+
+* sigma_t / discriminability: There might be too much linear dependence within the model with these two, since discrimination processes depend on variation relative to the
+
 # Drift foraging model to-do list
 
 ## Visualization
