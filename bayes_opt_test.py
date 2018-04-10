@@ -37,7 +37,7 @@ param_limits = {
     'c_1': (-5, 1),              # beta              -- Scales effect of set size on tau; larger beta = harder detection, more incentive to drop debris-laden prey
     'discriminability': (0.02, 2.0),   # discriminability  -- Difference in mean preyishness between prey and debris.
     'sigma_t': (0.02, 2.0),            # sigma_t           -- Variation in actual preyishness of both prey and debris (all types combined, for now) before perceptual effects are applied
-    'tau_0': (-5, 1)               # tau_0             -- Base aptitude of the fish, i.e mean time-until-detection with no other effects present
+    'tau_0': (-5, 1)                    # tau_0             -- Base aptitude of the fish, i.e mean time-until-detection with no other effects present
 }
 
 bo = BayesianOptimization(f, param_limits)

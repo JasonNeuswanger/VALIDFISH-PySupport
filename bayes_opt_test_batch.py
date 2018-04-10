@@ -6,11 +6,11 @@ from bayes_opt import BayesianOptimization
 
 IS_MAC = (sys.platform == 'darwin')
 if IS_MAC:
-    RESULTS_FOLDER = '/Users/Jason/Dropbox/Drift Model Project/Calculations/'
+    RESULTS_FOLDER = '/Users/Jason/Dropbox/Drift Model Project/Calculations/cluster_pretest_results/s'
     method, scaling, batch_name, fish_label = 'ei', 'linear', 'mytest', '2015-07-11-1 Chena - Chinook Salmon (id #4)'
-    n_iterations = 1  # will really be 2x this + initial 30
+    n_iterations = 5  # will really be 2x this + initial 30
     opt_cores = 7  # grey wolf algorithm pack size
-    opt_iters = 50  # grey wolf algorithm iterations
+    opt_iters = 500  # grey wolf algorithm iterations
 else:
     RESULTS_FOLDER = '/home/alaskajn/results/bayes_opt_test/'
     method, scaling, batch_name, fish_label = sys.argv[1:]
@@ -22,8 +22,8 @@ test_fish = field_test_fish.FieldTestFish(fish_label)
 invalid_objective_function_value = -1000000  # used to replace inf, nan, or extreme values with something slightly less bad
 
 if scaling == 'linear':
-    def f(delta_0, alpha_0, beta, Z_0, c_1, discriminability, sigma_t, tau_0):
-        test_fish.cforager.modify_parameters(delta_0, alpha_0, beta, Z_0, c_1, discriminability, sigma_t, tau_0)
+    def f(delta_0, alpha_0, beta, Z_0, c_1, discriminability, sigma_t, tau_0, t_V):
+        test_fish.cforager.modify_parameters(delta_0, alpha_0, beta, Z_0, c_1, discriminability, sigma_t, tau_0, t_V)
         test_fish.optimize(opt_iters, opt_cores, False, False, False, False, False, False, True)
         obj = -test_fish.evaluate_fit(verbose=True)
         if np.isfinite(obj) and obj > invalid_objective_function_value:
@@ -37,13 +37,14 @@ if scaling == 'linear':
         'beta': (0.00001, 2.0),             # Z_0               -- Scales effect of search rate / spatial attention on tau; smaller Z_0 = harder detection.
         'Z_0': (0.00001, 2.0),              # c_1               -- Scales effect of FBA and saccade time on discrimination; bigger values incentivize longer saccades
         'c_1': (0.00001, 2.0),              # beta              -- Scales effect of set size on tau; larger beta = harder detection, more incentive to drop debris-laden prey
-        'discriminability': (0.01, 2.0),   # discriminability  -- Difference in mean preyishness between prey and debris.
-        'sigma_t': (0.01, 2.0),            # sigma_t           -- Variation in actual preyishness of both prey and debris (all types combined, for now) before perceptual effects are applied
-        'tau_0': (1e-5, 1.0)               # tau_0             -- Base aptitude of the fish, i.e mean time-until-detection with no other effects present
+        'discriminability': (0.01, 2.0),    # discriminability  -- Difference in mean preyishness between prey and debris.
+        'sigma_t': (0.01, 2.0),             # sigma_t           -- Variation in actual preyishness of both prey and debris (all types combined, for now) before perceptual effects are applied
+        'tau_0': (0.00001, 1.0),               # tau_0             -- Base aptitude of the fish, i.e mean time-until-detection with no other effects present
+        't_V': (0.01, 10)                   # t_V
     }
 elif scaling == 'log':
-    def f(delta_0, alpha_0, beta, Z_0, c_1, discriminability, sigma_t, tau_0):
-        test_fish.cforager.modify_parameters(10**delta_0, 10**alpha_0, 10**beta, 10**Z_0, 10**c_1, discriminability, sigma_t, 10**tau_0)
+    def f(delta_0, alpha_0, beta, Z_0, c_1, discriminability, sigma_t, tau_0, t_V):
+        test_fish.cforager.modify_parameters(10**delta_0, 10**alpha_0, 10**beta, 10**Z_0, 10**c_1, discriminability, sigma_t, 10**tau_0, 10**t_V)
         test_fish.optimize(opt_iters, opt_cores, False, False, False, False, False, False, True)
         obj = -test_fish.evaluate_fit(verbose=True)
         if np.isfinite(obj) and obj > invalid_objective_function_value:
@@ -59,7 +60,8 @@ elif scaling == 'log':
         'c_1': (-7, 2),              # beta              -- Scales effect of set size on tau; larger beta = harder detection, more incentive to drop debris-laden prey
         'discriminability': (0.02, 2.0),   # discriminability  -- Difference in mean preyishness between prey and debris.
         'sigma_t': (0.02, 2.0),            # sigma_t           -- Variation in actual preyishness of both prey and debris (all types combined, for now) before perceptual effects are applied
-        'tau_0': (-7, 2)               # tau_0             -- Base aptitude of the fish, i.e mean time-until-detection with no other effects present
+        'tau_0': (-7, 2),               # tau_0             -- Base aptitude of the fish, i.e mean time-until-detection with no other effects present
+        't_V': (-2, 1)               # t_V
     }
 
 bo = BayesianOptimization(f, param_limits)

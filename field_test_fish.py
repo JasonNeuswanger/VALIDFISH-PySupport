@@ -59,6 +59,7 @@ class FieldTestFish:
             1.0,                                    # lambda_c
             0.5,                                    # sigma_t
             0.03,                                   # base crypticity
+            0.5,                                    # t_V
             INTERPOLATION_ROOT                      # base directory for maneuver interpolation files
         )
 
