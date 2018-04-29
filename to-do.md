@@ -1,36 +1,36 @@
-# Notes
-
-## Parameter limit rationales
-
-* delta_0: Angular resolution ranges from 0.01 radians (smallest Chinook) to 0.005 radians (largest Grayling), so angular size should greatly increase tau near those boundaries.
-
-* sigma_t / discriminability: There might be too much linear dependence within the model with these two, since discrimination processes depend on variation relative to the
-
 # Drift foraging model to-do list
 
 ## Visualization
 
 * Do a volumetric plot of maneuver energy expenditure in 3D, weighted by maneuver frequency in each location
 
+* Do a plot of mean detection position in the x plane from a top view and separately from a side view, with two lines for each prey type, a solid one at the outer limit and a dotted one at the mean position.
+
+# Tomorrow
+
+* Build a single function to do all the detection proportions
+  without all the redundant recalculation of overall totals.
+  
+* Automate PDF exports for all the new plots.
+
 ## Scientific details
 
 ### Optimization
 
-* Test presence/absence of all 16 variants of model features
 * Test wolf count vs iteration tradeoff
 
 ### Major tasks
 
 * Plotting functions & reality checks
-* ABC optimization
-* Use this method or similar logic to make it possible to reset the appropriate caches after changing a given variable in the fish or the environment: https://stackoverflow.com/questions/45282631/clearing-lru-cache-of-certain-methods-when-an-attribute-of-the-class-is-updated -- this really makes the code a lot harder to follow, and I should consider reducing cache use where possible to a few carefully selected spots.
-* To account for y-variation in prey detection, what we should really do is integrate the product of detection probability and the maneuver cost function across the Y dimension of the search volume at each (x, z) position and for each prey type. Then divide by the total detection probability to normalize it to the maneuver cost per detection.
 
 ### Minor adjustments
 
 * Might need to make Z_0 a function of fish size for the same parameters to work across sizes
-* Make sigma_t a function of prey feature size
-* Consider also accounting for expulsion time (as measured in my 2014 paper),  although it might overlap with searching for new items, so probably don't.
+* Make discriminability a function of prey feature size
+
+## Diagnostics
+
+* Add blanket multipliers on prey/debris density just to make it possible to investigate this variable as a parameter (normally set to 1 / not optimized).
 
 ### Calibration/optimization/testing
 
