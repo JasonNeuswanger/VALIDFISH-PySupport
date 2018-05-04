@@ -94,7 +94,7 @@ def X_as_string(X):
     return ', '.join(pieces)
 
 def create_new_jobs():
-    select_query = "SELECT * FROM jobs WHERE objective_function IS NOT NULL AND job_name='{0}' LIMIT 1".format(job_name)
+    select_query = "SELECT * FROM jobs WHERE objective_function IS NOT NULL AND job_name='{0}'".format(job_name)
     cursor.execute(select_query)
     completed_job_data = cursor.fetchall()
     if len(completed_job_data) >= MAX_ITERATIONS:
