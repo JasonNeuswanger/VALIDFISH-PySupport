@@ -171,6 +171,10 @@ cursor = db.cursor()
 select_query = "SELECT * FROM jobs WHERE start_time IS NULL AND job_name='{0}' LIMIT 1".format(job_name)
 cursor.execute(select_query)
 job_data = cursor.fetchone()
+if job_data is None:
+    create_new_jobs()
+    cursor.execute(select_query)
+    job_data = cursor.fetchone()
 while job_data is not None:
     job_id, is_initial, read_job_name, read_fish_group, machine_assigned, start_time, progress, completed_time, objective_val_read, delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu = job_data
     cursor.execute("UPDATE jobs SET start_time=NOW(), machine_assigned='{1}' WHERE id={0}".format(job_id, NODE_NAME))
