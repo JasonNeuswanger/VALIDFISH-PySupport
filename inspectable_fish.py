@@ -82,9 +82,22 @@ class InspectableFish(ftf.FieldTestFish):
         (px, py, pz) = 100 * np.transpose(np.asarray(self.fielddata['detection_positions']))
         point_radius = 0.005 * self.fork_length_cm
         d = np.repeat(2 * point_radius, px.size)  # creates an array of point diameters
-        mlab.points3d(py, -px, pz, d, color=self.color, scale_factor=8, resolution=12, opacity=1.0, figure=myFig)
+        mlab.points3d(py, -px, pz, d, color=kwargs.get('pointcolor', self.color), scale_factor=10, resolution=12, opacity=1.0, figure=myFig)
         mlab.show(stop=stopButton)
         return myFig
+
+    def plot_water_velocity(self):
+        bottom_z = self.fielddata['bottom_z_m']
+        surface_z = self.fielddata['surface_z_m']
+        zvalues = np.linspace(bottom_z, surface_z, 100)
+        velocities = [self.cforager.water_velocity(z) for z in zvalues]
+        plt.figure(figsize=(5, 5))
+        ax = plt.axes()
+        ax.plot(zvalues, velocities)
+        ax.set_xlabel("Z coordinate (m), from bottom to surface")
+        ax.set_ylabel("Water velocity (m/s)")
+        plt.tight_layout()
+        plt.show()
 
     def _roc_curve_data(self, pc):
         perceptual_sigma = pc.get_perceptual_sigma()

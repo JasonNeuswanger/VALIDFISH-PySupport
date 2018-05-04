@@ -57,7 +57,7 @@ def objective_function(*args):
     objective = 0
     for i, fish in enumerate(fishes):
         fish.cforager.set_parameters(*ordered_params)
-        print("Optimizing strategy for fish {0} of {1}: {2}.".format(i, len(fishes), fish.label))
+        print("Optimizing strategy for fish {0} of {1}: {2}.".format(i+1, len(fishes), fish.label))
         fish.optimize(opt_iters, opt_cores, True, False, False, False, False, False, True)
         fit_value = fish.evaluate_fit(verbose=True)
         if fit_value > invalid_objective_function_value or not np.isfinite(fit_value):

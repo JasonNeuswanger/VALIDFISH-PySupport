@@ -14,13 +14,13 @@ if IS_MAC:
     #                 '2015-08-05-2 Chena - Chinook Salmon (id #4)',
     #                 '2015-06-12-1 Chena - Chinook Salmon (id #1)'
     #                 ]
-    fish_labels = [#'2015-07-11-1 Chena - Chinook Salmon (id #4)',
-                   '2015-08-05-2 Chena - Chinook Salmon (id #4)',
-                   '2015-07-17-3 Panguingue - Dolly Varden (id #4)',
-                   #'2015-06-17-1 Panguingue - Dolly Varden (id #4)',
-                   '2016-06-10-2 Clearwater - Arctic Grayling (id #1)',
-                   #'2016-08-02-2 Clearwater - Arctic Grayling (id #1)'
-                   ]
+    # fish_labels = [#'2015-07-11-1 Chena - Chinook Salmon (id #4)',
+    #                '2015-08-05-2 Chena - Chinook Salmon (id #4)',
+    #                '2015-07-17-3 Panguingue - Dolly Varden (id #4)',
+    #                #'2015-06-17-1 Panguingue - Dolly Varden (id #4)',
+    #                '2016-06-10-2 Clearwater - Arctic Grayling (id #1)',
+    #                #'2016-08-02-2 Clearwater - Arctic Grayling (id #1)'
+    #                ]
     # fish_labels = ['2015-07-11-1 Chena - Chinook Salmon (id #4)']
     # fish_labels = ['2015-07-11-1 Chena - Chinook Salmon (id #4)',
     #                '2015-07-10-1 Chena - Chinook Salmon (id #4)',
@@ -33,13 +33,13 @@ if IS_MAC:
     #                '2016-08-02-2 Clearwater - Arctic Grayling (id #1)'
     #                ]
     #fish_labels = ['2016-08-02-2 Clearwater - Arctic Grayling (id #1)']
-    #fish_labels = ['2015-07-11-1 Chena - Chinook Salmon (id #4)']
+    fish_labels = ['2016-08-12-1 Chena - Chinook Salmon (id #1)']
     fishes = [inspectable_fish.InspectableFish(fish_label) for fish_label in fish_labels]
     RESULTS_FOLDER = '/Users/Jason/Dropbox/Drift Model Project/Calculations/cluster_pretest_results/'
     n_iterations = 50            # number of times new values are requested to calculate fitnesses
     n_evals_per_iteration = 1   # number of jobs per iteration above, for parallelizing across nodes eventually
     opt_cores = 7     # grey wolf algorithm pack size
-    opt_iters = 50    # grey wolf algorithm iterations
+    opt_iters = 100    # grey wolf algorithm iterations
 else:
     import field_test_fish
     acquisition_type, scaling, batch_name = argv[1:]
@@ -128,20 +128,12 @@ fixed_parameters = {    # Fix a parameter's value here to exclude it from optimi
 }
 domain = [item for item in full_domain if item['name'] not in fixed_parameters.keys()]
 
-
-
-
-
-
-
-
-
 space = gpo.Design_space(domain)
 
-n_initial_points = 30
+n_initial_points = 100
 X_init = initial_design('sobol', space, n_initial_points)
 Y_init = []
-for i, x in enumerate(X_init):
+for i, x in enumerate(X_init[:1]):
     value = objective_function(*x)
     Y_init.append(value)
     print("For initial point {0} of {1}, appending objective function value {2:.3f} (best so far = {4:.3f}) for x={3}.\n".format(i+1, n_initial_points, value, X_as_string(x), min(Y_init)))
@@ -246,8 +238,10 @@ optimize_forager_with_parameters(fish, *X_unique[-1])
 from mayavi import mlab
 mlab.options.backend = 'simple'
 
-test_fish = fishes[0]
-fig3d = test_fish.plot_predicted_detection_field(gridsize=50j, colorMax=None)
+test_fish = fishes[7]
+fig3d = test_fish.plot_predicted_detection_field(gridsize=50j, colorMax=None, bgcolor=(1,1,1), pointcolor=(1,0,0))
+test_fish.evaluate_fit()
+
 
 test_fish.foraging_point_distribution_distance(verbose=False, plot=True)
 

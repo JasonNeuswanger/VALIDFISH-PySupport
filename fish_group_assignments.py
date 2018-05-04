@@ -30,6 +30,10 @@ calibration_five_of_each = calibration_five_chinook + calibration_five_dollies +
 
 calibration_one_chinook = random.sample(calibration_chinook_labels, 1)
 
+print("Calibration group for Chinook has {0} fish, with {1} reserved for testing.".format(len(calibration_chinook_labels), len(testing_chinook_labels)))
+print("Calibration group for Grayling has {0} fish, with {1} reserved for testing.".format(len(calibration_grayling_labels), len(testing_grayling_labels)))
+print("Calibration group for Dollies has {0} fish, with {1} reserved for testing.".format(len(calibration_dolly_labels), len(testing_dolly_labels)))
+
 # Save groups to file
 
 # first element of each dict entry is the fish labels, second is the species (or 'all') contained
