@@ -1,12 +1,16 @@
 import os
 import re
+from sys import argv
 
 # CONFIGURATION FOR A GIVEN JOB
 
-N_NODES = 1
-CORES_PER_NODE = 14
-JOB_NAME = "First Cluster Test"
-FISH_GROUP = "calibration_five_of_each"
+N_NODES = argv[1]  # 1
+CORES_PER_NODE = argv[2]  # 14
+JOB_NAME = argv[3]  # "First Cluster Test"
+FISH_GROUP = argv[4]  # "calibration_five_of_each"
+
+# Example usage:
+# python calibration_batch_builder.py 30 14 'First Cluster Test' 'calibration_five_of_each'
 
 # COMMON CODE FOR ANY JOB
 
