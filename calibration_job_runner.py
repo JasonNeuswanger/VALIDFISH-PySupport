@@ -6,7 +6,7 @@ import pymysql
 import numpy as np
 import GPyOpt as gpo  # note, need to pip install both this and sobol_seq
 
-MAX_ITERATIONS = 1000
+MAX_ITERATIONS = 4000
 
 IS_MAC = (uname()[0] == 'Darwin')
 NODE_NAME = uname()[1]
