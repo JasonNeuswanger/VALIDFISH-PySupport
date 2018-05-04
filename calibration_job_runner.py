@@ -98,6 +98,7 @@ def create_new_jobs():
     cursor.execute(select_query)
     completed_job_data = cursor.fetchall()
     if len(completed_job_data) >= MAX_ITERATIONS:
+        print("There are {0} completed iterations out of a maximum {1} requested -- ceasing new job creation.".format(len(completed_job_data), MAX_ITERATIONS))
         return
     Y_all = []
     X_all = []
@@ -176,7 +177,6 @@ while job_data is not None:
     if search_images_allowed:
         obj_value = objective_function(job_id, delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu)
     else:
-        print("Should be calling objective function...")
         obj_value = objective_function(job_id, delta_0, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu)
     cursor.execute("UPDATE jobs SET completed_time=NOW(), objective_function={1}, progress=1.0 WHERE id={0}".format(job_id, obj_value))
     cursor.execute(select_query)
