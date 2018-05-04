@@ -4,8 +4,8 @@ from sys import argv
 
 # CONFIGURATION FOR A GIVEN JOB
 
-N_NODES = argv[1]  # 1
-CORES_PER_NODE = argv[2]  # 14
+N_NODES = int(argv[1])  # 1
+CORES_PER_NODE = int(argv[2])  # 14
 JOB_NAME = argv[3]  # "First Cluster Test"
 FISH_GROUP = argv[4]  # "calibration_five_of_each"
 
