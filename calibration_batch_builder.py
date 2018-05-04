@@ -31,7 +31,7 @@ for i in range(N_NODES):
     echo
     
     python calibration_job_runner.py '{job_name}' '{fish_group}'
-    """.format(nodes=CORES_PER_NODE, job_name=JOB_NAME, fish_group=FISH_GROUP)
+    """.format(nodes=CORES_PER_NODE, job_name=JOB_NAME.replace(" ", ""), fish_group=FISH_GROUP)
 
     with open('{0}.sh'.format('batches/' + batch_name), 'w') as batch_file:
         batch_file.write(batch_file_contents)
