@@ -192,25 +192,6 @@ class FieldTestFish:
         vprint("Proportion of attempts ingested is predicted {0:.3f}, observed {1:.3f}.".format(predicted_proportion_ingested, observed_proportion_ingested))
         # Foraging point data
         spatial_part = self.foraging_point_distribution_distance(verbose=verbose, plot=False) * objective_weights['spatial']
-        # spatial_detection_proportions = self.cforager.spatial_detection_proportions(None, "All", verbose) # use None for 'All' prey types
-        # Detection distance data
-        # distance_obj_total = 0
-        # for i, bin in enumerate(spatial_detection_proportions['distance']):
-        #     binmin, binmax = bin['min_distance'], bin['max_distance']
-        #     predicted = bin['proportion']
-        #     observed = self.fielddata['detection_distance_proportions'][i]
-        #     distance_obj_total += (predicted - observed) ** 2
-        #     vprint("For distance bin {0:.3f} to {1:.3f} m,    predicted proportion {2:.3f}, observed proportion {3:.3f}.".format(binmin, binmax, predicted, observed))
-        # distance_part = (distance_obj_total / len(spatial_detection_proportions['distance'])) * objective_weights['detection_distances_combined']
-        # # Detection angle data
-        # angle_obj_total = 0
-        # for i, bin in enumerate(spatial_detection_proportions['angle']):
-        #     binmin, binmax = bin['min_angle'], bin['max_angle']
-        #     predicted = bin['proportion']
-        #     observed = self.fielddata['detection_angle_proportions'][i]
-        #     angle_obj_total += (predicted - observed) ** 2
-        #     vprint("For angle bin {0:.3f} to {1:.3f} radians, predicted proportion {2:.3f}, observed proportion {3:.3f}.".format(binmin, binmax, predicted, observed))
-        # angle_part = (angle_obj_total / len(spatial_detection_proportions['angle'])) * objective_weights['detection_angles_combined']
         # Diet data
         dietdata = [item for item in self.fielddata['diet_by_category'].values() if item['number'] is not None]
         diet_obj_total = 0

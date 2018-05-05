@@ -11,12 +11,13 @@ from GPyOpt.experiment_design import initial_design
 
 # SETTINGS THAT MIGHT VARY BY JOB
 
-JOB_NAME = "FirstFiveGrayling"
-FISH_GROUP = "calibration_five_grayling"
-n_initial_points = 100
+JOB_NAME = "SecondFiveOfEach"
+FISH_GROUP = "calibration_five_of_each"
+n_initial_points = 400
 fixed_parameters = {  # Fix a parameter's value here to exclude it from optimization analysis, especially alpha_tau and alpha_d if not allowing search images
     'alpha_tau': 1,
-    'alpha_d': 1
+    'alpha_d': 1,
+    'flicker_frequency': 50
 }
 log_scaled_params = ['delta_0', 'A_0', 'alpha_tau', 'alpha_d', 'beta', 't_s_0', 'tau_0', 'nu']
 

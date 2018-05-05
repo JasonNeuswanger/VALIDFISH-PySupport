@@ -236,14 +236,38 @@ class InspectableFish(ftf.FieldTestFish):
         gs.tight_layout(fig, rect=[0, 0, 1.0, 0.95])
         plt.show()
 
-    def plot_tau_components(self, x, z, pt):
+    def plot_tau_components(self, **kwargs):
         # Plot the relative size of each component of tau
+        pt = kwargs.get('pt', self.cforager.get_favorite_prey_type())
+        x = kwargs.get('x', 0.5 * pt.get_max_attended_distance())
+        z = kwargs.get('z', 0.5 * pt.get_max_attended_distance())
         T = self.cforager.passage_time(x, z, pt)
-        plot_times = np.linspace(0.001, T-0.001, 30)
+        plot_times = np.linspace(0.01, T - 0.01, 30)
         components_list = [self.cforager.tau_components(t, x, z, pt) for t in plot_times]
         df = DataFrame(components_list)
         df.set_index('t')
-        return df
+        components_to_plot = [item for item in components_list[0].keys() if item not in
+                              ['t', 'y', 'flicker_frequency'] and not (df[item] == 1).all()]
+        fig = plt.figure(figsize=(9, 6))
+        gs1 = gridspec.GridSpec(1, 1)
+        ax = fig.add_subplot(gs1[0])
+        ax.axhline(color='k', ls='dotted')
+        legend_handles = []
+        palette = hls_palette(len(components_to_plot), l=.5, s=0.8)
+        x = df['y']
+        for i, component in enumerate(components_to_plot):
+            y = np.log10(df[component])
+            handle = ax.plot(x, y, color=palette[i], label=component)
+            legend_handles.append(handle[0])
+        # ax.legend(handles=legend_handles, loc=4)
+        ax.legend(handles=legend_handles, loc='upper center', bbox_to_anchor=(0.5, -0.1),
+                  ncol=4, fancybox=True, shadow=True)
+        ax.set_title("{0}: Tau effects for {1}".format(self.label, pt.get_name()))
+        ax.set_xlabel("Y-coordinate (in m, from upstream to downstream)")
+        ax.set_ylabel("Log10 multiplier on tau (0 = no effect)")
+        ax.invert_xaxis()  # upstream to the left, downstream to the right
+        gs1.tight_layout(fig, rect=[0, 0.1, 1, 1])
+        plt.show()
 
     def plot_tau_by_class(self, x, z):
         # using x/z defined by half the max viewing distance for the smallest size class

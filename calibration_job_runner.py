@@ -6,7 +6,7 @@ import pymysql
 import numpy as np
 import GPyOpt as gpo  # note, need to pip install both this and sobol_seq
 
-MAX_ITERATIONS = 4000
+MAX_ITERATIONS = 5000
 
 IS_MAC = (uname()[0] == 'Darwin')
 NODE_NAME = uname()[1]
@@ -32,12 +32,17 @@ else:
     opt_iters = 200  # grey wolf algorithm iterations
 
 search_images_allowed = (fish_species == 'all' or fish_species == 'grayling')
-if search_images_allowed:
-    fixed_parameters = {}
+if search_images_allowed:  # DISABLING THESE FOR NOW
+    fixed_parameters = {    # fix search image parameters to have no effect if not doing grayling
+        'alpha_tau': 1,
+        'alpha_d': 1,
+        'flicker_frequency': 50
+    }
 else:
     fixed_parameters = {    # fix search image parameters to have no effect if not doing grayling
         'alpha_tau': 1,
-        'alpha_d': 1
+        'alpha_d': 1,
+        'flicker_frequency': 50
     }
 log_scaled_params = ['delta_0', 'A_0', 'alpha_tau', 'alpha_d', 'beta', 't_s_0', 'tau_0', 'nu']
 
@@ -113,10 +118,10 @@ def create_new_jobs():
                                           domain=domain,
                                           X=np.array(X_all), Y=np.array(Y_all).reshape(len(Y_all), 1),
                                           model_type='GP',
-                                          acquisition_type='EI',
+                                          acquisition_type='MPI',
                                           normalize_Y=False,
                                           evaluator_type='local_penalization',  # needs to be local_penalization to keep next-value suggestions from overlapping too much within batches
-                                          batch_size=10,
+                                          batch_size=20,
                                           num_cores=1,
                                           noise_var=0.15*len(fishes),
                                           acquisition_jitter=0)

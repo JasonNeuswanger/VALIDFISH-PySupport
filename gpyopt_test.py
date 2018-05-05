@@ -22,18 +22,18 @@ if IS_MAC:
     #                #'2016-08-02-2 Clearwater - Arctic Grayling (id #1)'
     #                ]
     # fish_labels = ['2015-07-11-1 Chena - Chinook Salmon (id #4)']
-    # fish_labels = ['2015-07-11-1 Chena - Chinook Salmon (id #4)',
-    #                '2015-07-10-1 Chena - Chinook Salmon (id #4)',
-    #                '2015-08-05-2 Chena - Chinook Salmon (id #4)',
-    #                '2015-06-16-2 Panguingue - Dolly Varden (id #2)',
-    #                '2016-06-17-1 Panguingue - Dolly Varden (id #3)',
-    #                '2015-07-17-3 Panguingue - Dolly Varden (id #4)',
-    #                '2016-06-10-2 Clearwater - Arctic Grayling (id #1)',
-    #                '2015-06-23-2 Clearwater - Arctic Grayling (id #1)',
-    #                '2016-08-02-2 Clearwater - Arctic Grayling (id #1)'
-    #                ]
+    fish_labels = ['2015-07-11-1 Chena - Chinook Salmon (id #4)',
+                   '2015-07-10-1 Chena - Chinook Salmon (id #4)',
+                   '2015-08-05-2 Chena - Chinook Salmon (id #4)',
+                   '2015-06-16-2 Panguingue - Dolly Varden (id #2)',
+                   '2016-06-17-1 Panguingue - Dolly Varden (id #3)',
+                   '2015-07-17-3 Panguingue - Dolly Varden (id #4)',
+                   '2016-06-10-2 Clearwater - Arctic Grayling (id #1)',
+                   '2015-06-23-2 Clearwater - Arctic Grayling (id #1)',
+                   '2016-08-02-2 Clearwater - Arctic Grayling (id #1)'
+                   ]
     #fish_labels = ['2016-08-02-2 Clearwater - Arctic Grayling (id #1)']
-    fish_labels = ['2016-08-12-1 Chena - Chinook Salmon (id #1)']
+    #fish_labels = ['2016-08-12-1 Chena - Chinook Salmon (id #1)']
     fishes = [inspectable_fish.InspectableFish(fish_label) for fish_label in fish_labels]
     RESULTS_FOLDER = '/Users/Jason/Dropbox/Drift Model Project/Calculations/cluster_pretest_results/'
     n_iterations = 50            # number of times new values are requested to calculate fitnesses
@@ -238,8 +238,9 @@ optimize_forager_with_parameters(fish, *X_unique[-1])
 from mayavi import mlab
 mlab.options.backend = 'simple'
 
-test_fish = fishes[7]
-fig3d = test_fish.plot_predicted_detection_field(gridsize=50j, colorMax=None, bgcolor=(1,1,1), pointcolor=(1,0,0))
+test_fish = fishes[0] # also do 5
+fig3d = test_fish.plot_predicted_detection_field(gridsize=50j, colorMax=None, bgcolor=(0,0,0))
+
 test_fish.evaluate_fit()
 
 
