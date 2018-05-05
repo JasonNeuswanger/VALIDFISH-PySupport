@@ -18,11 +18,11 @@ with open('db_settings.pickle', 'rb') as handle:
 
 if IS_MAC:
     import inspectable_fish
-    job_name, fish_group = 'First Test Run', 'calibration_one_chinook'
+    job_name, fish_group = 'SecondFiveOfEach', 'calibration_five_of_each'
     fish_labels, fish_species = fish_groups[fish_group]
     fishes = [inspectable_fish.InspectableFish(fish_label) for fish_label in fish_labels]
-    opt_cores = 7     # grey wolf algorithm pack size
-    opt_iters = 30    # grey wolf algorithm iterations
+    opt_cores = 12     # grey wolf algorithm pack size
+    opt_iters = 200    # grey wolf algorithm iterations
 else:
     import field_test_fish
     job_name, fish_group = argv[1:]
@@ -51,6 +51,7 @@ def objective_function(*args):
     job_id = args[0]
     argnames = [item['name'] for item in domain]
     argvalues = args[1:]
+    assert(len(argnames) == len(argvalues))  # make sure function was called with exact # of arguments to map onto current domain
     def scale(argname, argvalue):
         return 10**argvalue if argname in log_scaled_params else argvalue
     scaled_values = [scale(name, value) for name, value in zip(argnames, argvalues)]
@@ -186,7 +187,7 @@ while job_data is not None:
     if search_images_allowed:
         obj_value = objective_function(job_id, delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu)
     else:
-        obj_value = objective_function(job_id, delta_0, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu)
+        obj_value = objective_function(job_id, delta_0, beta, A_0, t_s_0, discriminability, tau_0, nu)
     cursor.execute("UPDATE jobs SET completed_time=NOW(), objective_function={1}, progress=1.0 WHERE id={0}".format(job_id, obj_value))
     cursor.execute(select_query)
     job_data = cursor.fetchone()

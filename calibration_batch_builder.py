@@ -10,7 +10,7 @@ JOB_NAME = argv[3]  # "First Cluster Test"
 FISH_GROUP = argv[4]  # "calibration_five_of_each"
 
 # Example usage:
-# python calibration_batch_builder.py 30 14 'First Cluster Test' 'calibration_five_of_each'
+# python calibration_batch_builder.py 30 14 'SecondFiveOfEach' 'calibration_five_of_each'
 
 # COMMON CODE FOR ANY JOB
 

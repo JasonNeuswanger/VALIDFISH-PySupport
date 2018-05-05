@@ -74,7 +74,7 @@ class FieldTestFish:
             data['surface_z_m'],                    # surface_z
             int(data['temperature_C']),             # temperature (integer)
             0.05,                                   # bed_roughness
-            1.0,                                    # discriminability
+            2.5,                                    # discriminability
             0.1,                                    # tau_0
             30,                                     # flicker frequency
             1e-3,                                   # nu
@@ -120,11 +120,13 @@ class FieldTestFish:
         x, y, z = np.mgrid[-r:r:gridsize, -r:r:gridsize, -r:r:gridsize]
         raw_predictions = vfunc(x, y, z).flatten()
         predictions = np.array(sorted(raw_predictions[raw_predictions > 0]))
+        if len(predictions) == 0:
+            print("WARNING! Predicted zero foraging. Something is wrong with the parameters. Printed raw predictions below. Returning maxium Wasserstein-like distance of 1.")
+            return 1
         # Now we load the field observations of detection positions and calculate the relative concentration
         # of pursued items predicted to be detected at each of these points.
         observations = np.array([self.cforager.relative_pursuits_by_position(*coords) for coords in
                                  self.fielddata['detection_positions']])
-
         overall_max = max(predictions.max(), observations.max())
         predictions /= overall_max
         observations /= overall_max
