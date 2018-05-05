@@ -51,6 +51,9 @@ def objective_function(*args):
     job_id = args[0]
     argnames = [item['name'] for item in domain]
     argvalues = args[1:]
+    if len(argnames) != len(argvalues):
+        print(argnames)
+        print(argvalues)
     assert(len(argnames) == len(argvalues))  # make sure function was called with exact # of arguments to map onto current domain
     def scale(argname, argvalue):
         return 10**argvalue if argname in log_scaled_params else argvalue
@@ -184,10 +187,10 @@ if job_data is None:
 while job_data is not None:
     job_id, is_initial, read_job_name, read_fish_group, machine_assigned, start_time, progress, completed_time, objective_val_read, delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu = job_data
     cursor.execute("UPDATE jobs SET start_time=NOW(), machine_assigned='{1}' WHERE id={0}".format(job_id, NODE_NAME))
-    if search_images_allowed:
-        obj_value = objective_function(job_id, delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu)
-    else:
-        obj_value = objective_function(job_id, delta_0, beta, A_0, t_s_0, discriminability, tau_0, nu)
+    #if search_images_allowed:
+    #    obj_value = objective_function(job_id, delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu)
+    #else:
+    obj_value = objective_function(job_id, delta_0, beta, A_0, t_s_0, discriminability, tau_0, nu)
     cursor.execute("UPDATE jobs SET completed_time=NOW(), objective_function={1}, progress=1.0 WHERE id={0}".format(job_id, obj_value))
     cursor.execute(select_query)
     job_data = cursor.fetchone()
