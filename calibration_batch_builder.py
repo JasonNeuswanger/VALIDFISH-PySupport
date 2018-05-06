@@ -6,10 +6,10 @@ from sys import argv
 
 N_NODES = int(argv[1])
 CORES_PER_NODE = int(argv[2])
-JOB_NAME = argv[2]
+JOB_NAME = argv[3]
 
 # Example usage:
-# python calibration_batch_builder.py 30 14 'SecondFiveOfEach'
+# python calibration_batch_builder.py 15 14 'SecondFiveOfEach'
 
 # COMMON CODE FOR ANY JOB
 
