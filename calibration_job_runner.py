@@ -1,201 +1,234 @@
 from platform import uname
 from sys import argv
 import json
+from time import sleep
 import pickle
 import pymysql
 import numpy as np
 import GPyOpt as gpo  # note, need to pip install both this and sobol_seq
+from GPyOpt.experiment_design import initial_design
 
-MAX_ITERATIONS = 5000
+# all_parameters must be in the order passed to the cforager.set_parameters()
+all_parameters = ['delta_0', 'alpha_tau', 'alpha_d', 'beta', 'A_0', 't_s_0', 'discriminability', 'flicker_frequency', 'tau_0', 'nu']
+log_scaled_parameters = ['delta_0', 'alpha_tau', 'alpha_d', 'beta', 'A_0', 't_s_0', 'tau_0', 'nu']
+
+class JobRunner:
+
+    def __init__(self, initial_job_name):
+        self.machine_name = uname()[1]
+        self.job_name = initial_job_name
+        self.previous_job_properties = None
+        cursor.execute("INSERT INTO job_runners (current_job_name, machine_name, current_task, cores_per_node) VALUES (\"{0}\", \"{1}\", \"{2}\", {3})".format(initial_job_name, self.machine_name, "Awaiting Job Assignment", cores_per_node))
+        cursor.execute("SELECT LAST_INSERT_ID()")
+        self.runner_id = cursor.fetchone()['LAST_INSERT_ID()']
+        self.load_job_properties()
+
+    def job_property_changed(self, job_property=None):  # check on a specific property or pass None to check all
+        if self.previous_job_properties is None:
+            return True
+        else:
+            if job_property is None:
+                return self.job_properties != self.previous_job_properties
+            else:
+                return self.job_properties[job_property] != self.previous_job_properties[job_property]
+
+    def load_job_properties(self):
+        cursor.execute("SELECT * FROM job_runners WHERE id={0}".format(self.runner_id))
+        self.runner_properties = cursor.fetchone()
+        self.job_name = self.runner_properties['current_job_name']
+        if self.runner_properties['stopped']:
+            exit("Job runner {0} was manually stopped on machine {1}.".format(self.runner_id, self.machine_name))
+        cursor.execute("SELECT * FROM job_descriptions WHERE job_name=\"{0}\"".format(self.job_name))
+        self.job_properties = cursor.fetchone()
+        if self.job_properties is None:
+            exit("ERROR: No job description found with name {0}.".format(self.job_name))
+        if self.job_properties['iterations_completed'] >= self.job_properties['max_iterations']:
+            cursor.execute("UPDATE job_runners SET current_task=\"Completed (Max Iterations Reached)\", stopped=1 WHERE id={0}".format(self.runner_id))
+            exit("Exiting script : reached max number of iterations.")
+        self.opt_cores = self.runner_properties['cores_per_node'] - 2  # grey wolf algorithm pack size
+        self.opt_iters = self.job_properties['grey_wolf_iterations']
+        if self.job_property_changed('fish_group'):
+            if self.job_properties['fish_group'] not in fish_groups.keys():
+                exit("ERROR: Fish group {0} not defined.".format(self.job_properties['fish_group']))
+            self.fish_labels, self.fish_species = fish_groups[self.job_properties['fish_group']]
+            self.fishes = [FishConstructor(fish_label) for fish_label in self.fish_labels]
+            self.build_domain()
+        self.previous_job_properties = self.job_properties
+
+    def build_domain(self):
+        actual_parameter_bounds = self.fishes[0].parameter_bounds.items()
+        scaled_parameter_bounds = {key: ((np.log10(value[0]), np.log10(value[1])) if key in log_scaled_parameters else value) for key, value in actual_parameter_bounds}
+        full_domain = [{'name': param, 'type': 'continuous', 'domain': scaled_parameter_bounds[param]} for param in all_parameters]
+        self.fixed_parameters = {}
+        for param in all_parameters:
+            if self.job_properties[param] is not None:
+                self.fixed_parameters[param] = self.job_properties[param]
+        self.domain = [item for item in full_domain if item['name'] not in self.fixed_parameters.keys()]
+        self.parameters_to_optimize = [item['name'] for item in self.domain]
+
+    def objective_function(self, job_id, *args):
+        invalid_objective_function_value = 1000000  # used to replace inf, nan, or extreme values with something slightly less bad
+        argnames = [item['name'] for item in self.domain]
+        if len(argnames) != len(args):
+            print(argnames)
+            print(args)
+        assert(len(argnames) == len(args))  # make sure function was called with exact # of arguments to map onto current domain
+        def scale(argname, argvalue):
+            return 10**argvalue if argname in log_scaled_parameters else argvalue
+        scaled_values = [scale(name, value) for name, value in zip(argnames, args)]
+        for key, value in self.fixed_parameters.items():
+            argnames.append(key)
+            scaled_values.append(value)
+        d = dict(zip(argnames, scaled_values))
+        ordered_params = [d[key] for key in all_parameters]
+        objective = 0
+        for i, fish in enumerate(self.fishes):
+            fish.cforager.set_parameters(*ordered_params)
+            print("Optimizing strategy for fish {0} of {1}: {2}.".format(i+1, len(self.fishes), fish.label))
+            fish.optimize(self.opt_iters, self.opt_cores, True, False, False, False, False, False, True)
+            fit_value = fish.evaluate_fit(verbose=True)
+            if fit_value > invalid_objective_function_value or not np.isfinite(fit_value):
+                return np.nan
+            else:
+                objective += fit_value
+            cursor.execute("UPDATE job_results SET progress={1:.2f} WHERE id={0}".format(job_id, (i+1)/len(self.fishes)))
+        return objective
+
+    def optimize_forager_with_parameters(self, forager, *args):
+        argnames = [item['name'] for item in self.domain]
+        def scale(argname, argvalue):
+            return 10 ** argvalue if argname in log_scaled_parameters else argvalue
+        scaled_values = [scale(name, value) for name, value in zip(argnames, args)]
+        for key, value in self.fixed_parameters.items():
+            argnames.append(key)
+            scaled_values.append(value)
+        d = dict(zip(argnames, scaled_values))
+        ordered_params = [d[key] for key in all_parameters]
+        forager.cforager.set_parameters(*ordered_params)
+        forager.optimize(self.opt_iters, self.opt_cores, True, False, False, False, False, False, True)
+
+    def X_as_string(self, X):
+        pieces=[]
+        for i, value in enumerate(X):
+            name = self.domain[i]['name']
+            printed_value = 10**value if name in log_scaled_parameters else value
+            if value < 0.001 or value > 1000:
+                pieces.append("{0}={1:.3e}".format(name, printed_value))
+            else:
+                pieces.append("{0}={1:.3f}".format(name, printed_value))
+        return ', '.join(pieces)
+
+    def value_from_X(self, X, param_name):
+        names = [item['name'] for item in self.domain]
+        if param_name in names:
+            return X[names.index(param_name)]
+        else:
+            return self.fixed_parameters[param_name]
+
+    def insert_query_from_X(self, X, is_initial):
+        query = "INSERT INTO job_results (job_name, is_initial, runner_id, start_time, completed_time, objective_value,\
+                   delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu) VALUES \
+                   (\"{job_name}\", {is_initial}, {runner_id}, NULL, NULL, NULL, \
+                   {delta_0}, {alpha_tau}, {alpha_d}, {beta}, {A_0}, {t_s_0}, {discriminability}, {flicker_frequency}, {tau_0}, {nu})" \
+            .format(job_name=self.job_name,
+                    is_initial=is_initial,
+                    runner_id=self.runner_id,
+                    delta_0=self.value_from_X(X, 'delta_0'),
+                    alpha_tau=self.value_from_X(X, 'alpha_tau'),
+                    alpha_d=self.value_from_X(X, 'alpha_d'),
+                    beta=self.value_from_X(X, 'beta'),
+                    A_0=self.value_from_X(X, 'A_0'),
+                    t_s_0=self.value_from_X(X, 't_s_0'),
+                    discriminability=self.value_from_X(X, 'discriminability'),
+                    flicker_frequency=self.value_from_X(X, 'flicker_frequency'),
+                    tau_0=self.value_from_X(X, 'tau_0'),
+                    nu=self.value_from_X(X, 'nu'))
+        return query
+
+    def create_initial_jobs(self):
+        print("\nCreating initial jobs.\n")
+        cursor.execute("UPDATE job_runners SET current_task=\"Creating Initial Jobs\" WHERE id={0}".format(self.runner_id))
+        space = gpo.Design_space(self.domain)
+        X_init = initial_design('sobol', space, self.job_properties['initial_iterations'])
+        for X in X_init:
+            cursor.execute(self.insert_query_from_X(X, True))
+
+    def create_iterated_jobs(self):
+        print("\nCreating {0} new jobs.\n".format(self.job_properties['batch_size']))
+        cursor.execute("UPDATE job_runners SET current_task=\"Creating New Jobs\" WHERE id={0}".format(self.runner_id))
+        cursor.execute("SELECT * FROM job_results WHERE objective_value IS NOT NULL AND job_name=\"{0}\"".format(self.job_name))
+        completed_job_data = cursor.fetchall()
+        if len(completed_job_data) >= self.job_properties['max_iterations']:
+            print("There are {0} completed iterations out of a maximum {1} requested -- ceasing new job creation.".format(len(completed_job_data), self.job_properties['max_iterations']))
+            return
+        Y_all = []
+        X_all = []
+        for row in completed_job_data:
+            Y_all.append(row['objective_value'])
+            X_all.append([row[key] for key in self.parameters_to_optimize])
+        bo = gpo.methods.BayesianOptimization(f=None,
+                                              domain=self.domain,
+                                              X=np.array(X_all), Y=np.array(Y_all).reshape(len(Y_all), 1),
+                                              model_type=self.job_properties['model_type'],
+                                              acquisition_type=self.job_properties['acquisition_type'],
+                                              normalize_Y=False,
+                                              evaluator_type='local_penalization', # needs to be local_penalization to keep next-value suggestions from overlapping too much within batches
+                                              batch_size=self.job_properties['batch_size'],
+                                              num_cores=1,
+                                              noise_var=0.15 * len(self.fishes),
+                                              acquisition_jitter=self.job_properties['acquisition_jitter'])
+        X_next = bo.suggest_next_locations()
+        for X in X_next:
+            cursor.execute(self.insert_query_from_X(X, False))
+
+    def run_jobs(self):
+        self.load_job_properties()  # update instructions (which job, etc) every time
+        cursor.execute("SELECT id FROM job_results WHERE job_name=\"{0}\" LIMIT 1".format(self.job_name))
+        if cursor.fetchone() is None:
+            self.create_initial_jobs()
+        cursor.execute("SELECT * FROM job_results WHERE start_time IS NULL AND job_name=\"{0}\" LIMIT 1".format(self.job_name))
+        job_data = cursor.fetchone()
+        if job_data is None:
+            cursor.execute("SELECT * FROM job_runners WHERE current_task=\"Creating New Jobs\"")
+            if cursor.fetchone() is None:
+                self.create_iterated_jobs()
+                self.run_jobs()
+            else:
+                cursor.execute("UPDATE job_runners SET current_task=\"Awaiting Job Creation\" WHERE id={0}".format(self.runner_id))
+                sleep(15)
+                self.run_jobs()
+        else:
+            cursor.execute("UPDATE job_results SET start_time=NOW() WHERE id={0}".format(job_data['id']))
+            cursor.execute("UPDATE job_runners SET current_task=\"Running Job {1}\" WHERE id={0}".format(self.runner_id, job_data['id']))
+            param_values = [job_data[param] for param in self.parameters_to_optimize]
+            obj_value = self.objective_function(job_data['id'], *param_values)
+            cursor.execute("UPDATE job_results SET completed_time=NOW(), objective_value={1}, progress=1.0 WHERE id={0}".format(job_data['id'], obj_value))
+            cursor.execute("UPDATE job_descriptions SET iterations_completed=(SELECT COUNT(*) FROM job_results WHERE job_name=\"{0}\" AND objective_value IS NOT NULL) WHERE job_name=\"{0}\"".format(self.job_name))
+            self.run_jobs()
 
 IS_MAC = (uname()[0] == 'Darwin')
-NODE_NAME = uname()[1]
+if IS_MAC:
+    import inspectable_fish
+    FishConstructor = inspectable_fish.InspectableFish
+else:
+    import field_test_fish
+    FishConstructor = field_test_fish.FieldTestFish
 
 with open('Fish_Groups.json', 'r') as fgf:
     fish_groups = json.load(fgf)
 with open('db_settings.pickle', 'rb') as handle:
     db_settings = pickle.load(handle)
+    db = pymysql.connect(host=db_settings['host'], port=db_settings['port'], user=db_settings['user'],
+                         passwd=db_settings['passwd'], db=db_settings['db'], autocommit=True, cursorclass=pymysql.cursors.DictCursor)
+    cursor = db.cursor()
 
 if IS_MAC:
-    import inspectable_fish
-    job_name, fish_group = 'SecondFiveOfEach', 'calibration_five_of_each'
-    fish_labels, fish_species = fish_groups[fish_group]
-    fishes = [inspectable_fish.InspectableFish(fish_label) for fish_label in fish_labels]
-    opt_cores = 12     # grey wolf algorithm pack size
-    opt_iters = 200    # grey wolf algorithm iterations
+    cores_per_node = 8
+    runner = JobRunner('NewCodeTest')
 else:
-    import field_test_fish
-    job_name, fish_group = argv[1:]
-    fish_labels, fish_species = fish_groups[fish_group]
-    fishes = [field_test_fish.FieldTestFish(fish_label) for fish_label in fish_labels]
-    opt_cores = 12   # grey wolf algorithm pack size
-    opt_iters = 200  # grey wolf algorithm iterations
+    cores_per_node = int(argv[1])
+    runner = JobRunner(argv[2])
 
-search_images_allowed = (fish_species == 'all' or fish_species == 'grayling')
-if search_images_allowed:  # DISABLING THESE FOR NOW
-    fixed_parameters = {    # fix search image parameters to have no effect if not doing grayling
-        'alpha_tau': 1,
-        'alpha_d': 1,
-        'flicker_frequency': 50
-    }
-else:
-    fixed_parameters = {    # fix search image parameters to have no effect if not doing grayling
-        'alpha_tau': 1,
-        'alpha_d': 1,
-        'flicker_frequency': 50
-    }
-log_scaled_params = ['delta_0', 'A_0', 'alpha_tau', 'alpha_d', 'beta', 't_s_0', 'tau_0', 'nu']
+runner.run_jobs()
 
-def objective_function(*args):
-    invalid_objective_function_value = 1000000  # used to replace inf, nan, or extreme values with something slightly less bad
-    job_id = args[0]
-    argnames = [item['name'] for item in domain]
-    argvalues = args[1:]
-    if len(argnames) != len(argvalues):
-        print(argnames)
-        print(argvalues)
-    assert(len(argnames) == len(argvalues))  # make sure function was called with exact # of arguments to map onto current domain
-    def scale(argname, argvalue):
-        return 10**argvalue if argname in log_scaled_params else argvalue
-    scaled_values = [scale(name, value) for name, value in zip(argnames, argvalues)]
-    for key, value in fixed_parameters.items():
-        argnames.append(key)
-        scaled_values.append(value)
-    d = dict(zip(argnames, scaled_values))
-    ordered_params = [d[key] for key in [row['name'] for row in full_domain]]
-    objective = 0
-    for i, fish in enumerate(fishes):
-        fish.cforager.set_parameters(*ordered_params)
-        print("Optimizing strategy for fish {0} of {1}: {2}.".format(i+1, len(fishes), fish.label))
-        fish.optimize(opt_iters, opt_cores, True, False, False, False, False, False, True)
-        fit_value = fish.evaluate_fit(verbose=True)
-        if fit_value > invalid_objective_function_value or not np.isfinite(fit_value):
-            return np.nan
-        else:
-            objective += fit_value
-        cursor.execute("UPDATE jobs SET progress={1:.2f} WHERE id={0}".format(job_id, (i+1)/len(fishes)))
-    return objective
-
-def optimize_forager_with_parameters(forager, *args):
-    argnames = [item['name'] for item in domain]
-    argvalues = args
-    def scale(argname, argvalue):
-        return 10 ** argvalue if argname in log_scaled_params else argvalue
-
-    scaled_values = [scale(name, value) for name, value in zip(argnames, argvalues)]
-    for key, value in fixed_parameters.items():
-        argnames.append(key)
-        scaled_values.append(value)
-    d = dict(zip(argnames, scaled_values))
-    ordered_params = [d[key] for key in [row['name'] for row in full_domain]]
-    forager.cforager.set_parameters(*ordered_params)
-    forager.optimize(opt_iters, opt_cores, True, False, False, False, False, False, True)
-
-def X_as_string(X):
-    pieces=[]
-    for i, value in enumerate(X):
-        name = domain[i]['name']
-        printed_value = 10**value if name in log_scaled_params else value
-        if value < 0.001 or value > 1000:
-            pieces.append("{0}={1:.3e}".format(name, printed_value))
-        else:
-            pieces.append("{0}={1:.3f}".format(name, printed_value))
-    return ', '.join(pieces)
-
-def create_new_jobs():
-    select_query = "SELECT * FROM jobs WHERE objective_function IS NOT NULL AND job_name='{0}'".format(job_name)
-    cursor.execute(select_query)
-    completed_job_data = cursor.fetchall()
-    if len(completed_job_data) >= MAX_ITERATIONS:
-        print("There are {0} completed iterations out of a maximum {1} requested -- ceasing new job creation.".format(len(completed_job_data), MAX_ITERATIONS))
-        return
-    Y_all = []
-    X_all = []
-    for row in completed_job_data:
-        job_id, is_initial, read_job_name, read_fish_group, machine_assigned, start_time, progress, completed_time, objective_val_read, delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu = row
-        Y_all.append(objective_val_read)
-        if search_images_allowed:
-            X_all.append([delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu])
-        else:
-            X_all.append([delta_0, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu])
-    bo = gpo.methods.BayesianOptimization(f=None,
-                                          domain=domain,
-                                          X=np.array(X_all), Y=np.array(Y_all).reshape(len(Y_all), 1),
-                                          model_type='GP',
-                                          acquisition_type='EI',
-                                          normalize_Y=False,
-                                          evaluator_type='local_penalization',  # needs to be local_penalization to keep next-value suggestions from overlapping too much within batches
-                                          batch_size=20,
-                                          num_cores=1,
-                                          noise_var=0.15*len(fishes),
-                                          acquisition_jitter=0)
-    X_next = bo.suggest_next_locations()
-    def value_from_X(X, param_name):
-        names = [item['name'] for item in domain]
-        if param_name in names:
-            return X[names.index(param_name)]
-        else:
-            return fixed_parameters[param_name]
-    queries = []
-    for X in X_next:
-        query = "INSERT INTO jobs (job_name, is_initial, fish_group, machine_assigned, start_time, completed_time, objective_function,\
-                   delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu) VALUES \
-                   (\"{job_name}\", FALSE, \"{fish_group}\", NULL, NULL, NULL, NULL, \
-                   {delta_0}, {alpha_tau}, {alpha_d}, {beta}, {A_0}, {t_s_0}, {discriminability}, {flicker_frequency}, {tau_0}, {nu})" \
-            .format(job_name=job_name,
-                    fish_group=fish_group,
-                    delta_0=value_from_X(X, 'delta_0'),
-                    alpha_tau=value_from_X(X, 'alpha_tau'),
-                    alpha_d=value_from_X(X, 'alpha_d'),
-                    beta=value_from_X(X, 'beta'),
-                    A_0=value_from_X(X, 'A_0'),
-                    t_s_0=value_from_X(X, 't_s_0'),
-                    discriminability=value_from_X(X, 'discriminability'),
-                    flicker_frequency=value_from_X(X, 'flicker_frequency'),
-                    tau_0=value_from_X(X, 'tau_0'),
-                    nu=value_from_X(X, 'nu'))
-        queries.append(query)
-    for query in queries:
-        cursor.execute(query)
-
-
-actual_parameter_bounds = fishes[0].parameter_bounds.items()
-scaled_parameter_bounds = {key: ((np.log10(value[0]), np.log10(value[1])) if key in log_scaled_params else value) for key, value in actual_parameter_bounds}
-full_domain = [  # must contain all inputs and in order the're given to cforager.set_parameters()
-        {'name': 'delta_0', 'type': 'continuous', 'domain': scaled_parameter_bounds['delta_0']},
-        {'name': 'alpha_tau', 'type': 'continuous', 'domain': scaled_parameter_bounds['alpha_tau']},
-        {'name': 'alpha_d', 'type': 'continuous', 'domain': scaled_parameter_bounds['alpha_d']},
-        {'name': 'beta', 'type': 'continuous', 'domain': scaled_parameter_bounds['beta']},
-        {'name': 'A_0', 'type': 'continuous', 'domain': scaled_parameter_bounds['A_0']},
-        {'name': 't_s_0', 'type': 'continuous', 'domain': scaled_parameter_bounds['t_s_0']},
-        {'name': 'discriminability', 'type': 'continuous', 'domain': scaled_parameter_bounds['discriminability']},
-        {'name': 'flicker_frequency', 'type': 'continuous', 'domain': scaled_parameter_bounds['flicker_frequency']},
-        {'name': 'tau_0', 'type': 'continuous', 'domain': scaled_parameter_bounds['tau_0']},
-        {'name': 'nu', 'type': 'continuous', 'domain': scaled_parameter_bounds['nu']},
-]
-domain = [item for item in full_domain if item['name'] not in fixed_parameters.keys()]
-
-db = pymysql.connect(host=db_settings['host'], port=db_settings['port'], user=db_settings['user'], passwd=db_settings['passwd'], db=db_settings['db'], autocommit=True)
-cursor = db.cursor()
-select_query = "SELECT * FROM jobs WHERE start_time IS NULL AND job_name='{0}' LIMIT 1".format(job_name)
-cursor.execute(select_query)
-job_data = cursor.fetchone()
-if job_data is None:
-    create_new_jobs()
-    cursor.execute(select_query)
-    job_data = cursor.fetchone()
-while job_data is not None:
-    job_id, is_initial, read_job_name, read_fish_group, machine_assigned, start_time, progress, completed_time, objective_val_read, delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu = job_data
-    cursor.execute("UPDATE jobs SET start_time=NOW(), machine_assigned='{1}' WHERE id={0}".format(job_id, NODE_NAME))
-    #if search_images_allowed:
-    #    obj_value = objective_function(job_id, delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu)
-    #else:
-    obj_value = objective_function(job_id, delta_0, beta, A_0, t_s_0, discriminability, tau_0, nu)
-    cursor.execute("UPDATE jobs SET completed_time=NOW(), objective_function={1}, progress=1.0 WHERE id={0}".format(job_id, obj_value))
-    cursor.execute(select_query)
-    job_data = cursor.fetchone()
-    if job_data is None:
-        create_new_jobs()
-        cursor.execute(select_query)
-        job_data = cursor.fetchone()
 db.close()

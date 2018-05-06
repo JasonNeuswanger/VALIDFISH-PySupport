@@ -25,7 +25,7 @@ log_scaled_params = ['delta_0', 'A_0', 'alpha_tau', 'alpha_d', 'beta', 't_s_0', 
 
 actual_parameter_bounds = field_test_fish.FieldTestFish('2015-06-10-1 Chena - Chinook Salmon (id #1)').parameter_bounds.items()
 scaled_parameter_bounds = {key: ((np.log10(value[0]), np.log10(value[1])) if key in log_scaled_params else value) for key, value in actual_parameter_bounds}
-full_domain =[  # must contain all inputs and in order the're given to cforager.set_parameters()
+full_domain = [  # must contain all inputs and in order the're given to cforager.set_parameters()
         {'name': 'delta_0', 'type': 'continuous', 'domain': scaled_parameter_bounds['delta_0']},
         {'name': 'alpha_tau', 'type': 'continuous', 'domain': scaled_parameter_bounds['alpha_tau']},
         {'name': 'alpha_d', 'type': 'continuous', 'domain': scaled_parameter_bounds['alpha_d']},

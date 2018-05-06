@@ -4,13 +4,12 @@ from sys import argv
 
 # CONFIGURATION FOR A GIVEN JOB
 
-N_NODES = int(argv[1])  # 1
-CORES_PER_NODE = int(argv[2])  # 14
-JOB_NAME = argv[3]  # "First Cluster Test"
-FISH_GROUP = argv[4]  # "calibration_five_of_each"
+N_NODES = int(argv[1])
+CORES_PER_NODE = int(argv[2])
+JOB_NAME = argv[2]
 
 # Example usage:
-# python calibration_batch_builder.py 30 14 'SecondFiveOfEach' 'calibration_five_of_each'
+# python calibration_batch_builder.py 30 14 'SecondFiveOfEach'
 
 # COMMON CODE FOR ANY JOB
 
@@ -23,7 +22,7 @@ for i in range(N_NODES):
     #PBS -q batch
     #PBS -l nodes=1:ppn={cores}:Intel
     #PBS -l walltime=96:00:00
-    #PBS -l mem=10gb
+    #PBS -l mem=8gb
     #PBS -M jasonneuswanger@gmail.com
     #PBS -m ae
     
@@ -36,8 +35,8 @@ for i in range(N_NODES):
     echo "Nodes:  $(cat $PBS_NODEFILE | sort -u | tr '\n' ' ')"
     echo
     
-    python calibration_job_runner.py '{job_name}' '{fish_group}'
-    """.format(cores=CORES_PER_NODE, job_name=JOB_NAME, fish_group=FISH_GROUP)
+    python calibration_job_runner.py {cores} '{job_name}'
+    """.format(cores=CORES_PER_NODE, job_name=JOB_NAME)
 
     with open('{0}.sh'.format('batches/' + batch_name), 'w') as batch_file:
         batch_file.write(batch_file_contents)

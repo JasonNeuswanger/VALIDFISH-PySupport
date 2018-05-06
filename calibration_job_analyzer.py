@@ -253,10 +253,16 @@ for fish in fishes:
 # Double check that we really are getting bad-maneuver cutoffs and other suitable math in the
 # spatial data we're checking against plots.
 
-test_fish = fishes[5]
+test_fish = fishes[11]
 fig3d = test_fish.plot_predicted_detection_field(gridsize=50j, colorMax=None, bgcolor=(0, 0, 0))
 
-#test_fish.foraging_point_distribution_distance(verbose=False, plot=True)
+test_fish.foraging_point_distribution_distance(verbose=False, plot=True)
+
+test_fish.evaluate_fit()
+
+test_fish.cforager.print_strategy()
+
+test_fish.plot_tau_components(x=0.05, y=0.05)
 
 # --------------------------------------------------------------------------------------------------------
 # Save individual fish fits to file
@@ -272,3 +278,38 @@ print("Saved fit statistics to ", fit_file_path)
 
 # Issue: Chinook are consistently predicted to prefer faster water than they actually use,
 # even when the model is calibrated only for Chinook.
+
+# --------------------------------------------------------------------------------------------------------
+# Manipulate a fish fit
+# --------------------------------------------------------------------------------------------------------
+
+import importlib
+PYVALIDFISH_FILE = "/Users/Jason/Dropbox/Drift Model Project/Calculations/VALIDFISH/VALIDFISH/cmake-build-release/pyvalidfish.cpython-35m-darwin.so"
+spec = importlib.util.spec_from_file_location("pyvalidfish",  PYVALIDFISH_FILE)
+vf = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(vf)
+
+test_fish.cforager.print_strategy()
+test_fish.cforager.print_parameters()
+test_fish.evaluate_fit()
+
+test_fish.load_state()
+test_fish.cforager.set_strategy(vf.Forager.Strategy.mean_column_velocity, 0.2)
+test_fish.cforager.set_parameter(vf.Forager.Parameter.tau_0, 0.05)
+test_fish.cforager.set_parameter(vf.Forager.Parameter.delta_0, 1e-3)
+
+test_fish.cforager.set_parameter(vf.Forager.Parameter.tau_0, 0.1)
+test_fish.cforager.set_parameter(vf.Forager.Parameter.nu, 0.00001)
+test_fish.cforager.set_parameter(vf.Forager.Parameter.beta, 0.5)
+
+
+fig3d = test_fish.plot_predicted_detection_field(gridsize=50j, colorMax=None, bgcolor=(1, 1, 1))
+
+test_fish.foraging_point_distribution_distance(verbose=False, plot=True)
+
+test_fish.plot_tau_components(x=0.05, y=0.05)
+
+opts=test_fish.optimize(200, 14, True, False, False, False, False, False, True)
+
+
+
