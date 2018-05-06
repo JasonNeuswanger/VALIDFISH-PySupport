@@ -11,11 +11,14 @@ from matplotlib import cm
 import json
 import inspectable_fish
 
+job_name = 'SecondFiveOfEach'
+fish_group = 'calibration_five_of_each'
+
 # job_name = 'First Cluster Test'
 # fish_group = 'calibration_five_of_each'
 
-job_name = 'FirstFiveGrayling'
-fish_group = 'calibration_five_grayling'
+# job_name = 'FirstFiveGrayling'
+# fish_group = 'calibration_five_grayling'
 
 # job_name = 'FirstFiveDollies'
 # fish_group = 'calibration_five_dollies'
@@ -53,10 +56,10 @@ X_all = []
 for row in completed_job_data:
     job_id, is_initial, read_job_name, read_fish_group, machine_assigned, start_time, progress, completed_time, objective_val_read, delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu = row
     Y_all.append(objective_val_read)
-    if search_images_allowed:
-        X_all.append([delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu])
-    else:
-        X_all.append([delta_0, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu])
+    #if search_images_allowed:
+    #    X_all.append([delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu])
+    #else:
+    X_all.append([delta_0, beta, A_0, t_s_0, discriminability, tau_0, nu])
 db.close()
 X_all = np.asarray(X_all)
 Y_all = np.asarray(Y_all).reshape(len(Y_all), 1)
@@ -220,6 +223,7 @@ def optimize_forager_with_parameters(forager, *args):
     forager.optimize(200, 14, True, False, False, False, False, False, True)
 
 for fish in fishes:
+    print("Optimizing strategy for fish {0}.".format(fish.label))
     optimize_forager_with_parameters(fish, *X_best[-1])
     fish.save_state()
 
@@ -246,13 +250,10 @@ for fish in fishes:
 # All detecting stuff on the outer surface, must be some other factor in the cost
 # function overriding spatial variables.
 
-# For future optimizations, reduce the range of discriminability from 1.8 to 4
-# And fix flicker_frequency at a good value based on this set of calculations.
-# That should provide a bit more resolving power for the other parameters.
 # Double check that we really are getting bad-maneuver cutoffs and other suitable math in the
 # spatial data we're checking against plots.
 
-test_fish = fishes[12]
+test_fish = fishes[5]
 fig3d = test_fish.plot_predicted_detection_field(gridsize=50j, colorMax=None, bgcolor=(0, 0, 0))
 
 #test_fish.foraging_point_distribution_distance(verbose=False, plot=True)

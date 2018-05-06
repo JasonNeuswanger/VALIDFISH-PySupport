@@ -122,7 +122,7 @@ def create_new_jobs():
                                           domain=domain,
                                           X=np.array(X_all), Y=np.array(Y_all).reshape(len(Y_all), 1),
                                           model_type='GP',
-                                          acquisition_type='MPI',
+                                          acquisition_type='EI',
                                           normalize_Y=False,
                                           evaluator_type='local_penalization',  # needs to be local_penalization to keep next-value suggestions from overlapping too much within batches
                                           batch_size=20,
