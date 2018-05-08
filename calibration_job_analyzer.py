@@ -12,7 +12,7 @@ from job_runner import JobRunner
 export_plots = True
 show_plots = False
 
-job_name = 'SecondFiveOfEach'
+job_name = 'ThirdFiveOfEach'
 #job_name = 'SecondFiveGrayling'
 
 runner = JobRunner(job_name, readonly=True)
@@ -136,6 +136,15 @@ gs1.tight_layout(fig, rect=[0, 0, 1, 0.97])
 if export_plots: plt.savefig(os.path.join(figure_folder, "Convergence.pdf".format(param)))
 plt.show()
 
+
+
+
+# --------------------------------------------------------------------------------------------------------
+# NEW PLOT FOR DIET
+# --------------------------------------------------------------------------------------------------------
+
+
+
 # --------------------------------------------------------------------------------------------------------
 # SAVE FISH STATES
 # --------------------------------------------------------------------------------------------------------
@@ -167,21 +176,96 @@ for fish in runner.fishes:
 # --------------------------------------------------------------------------------------------------------
 
 for fish in runner.fishes:
-    fish.plot_tau_components(x=0.03, y=0.03)
+    fish.plot_tau_components(x=0.03, z=0.03)
+
+# tau components flatlined when i accidentally specified x/y instead of x/z... how?
+# z was automatically chosen as what?
+
+test_fish.plot_tau_components(x=0.03, z=0.03)
+test_fish.plot_tau_components(x=0.08, z=0.08)
+
+# This is an issue with the new formula... difficulty flattens off to an asymptote as
+# distance increases, rather than actually increasing tau it just fails to decrease it.
+# Is this really the behavior I want?
+
+
+
+# This shows results closer to Mathematica.... so what's up with the plot?
+# It's log10, but still, why showing near zilch?
+# loom effect should be around -0.11 on log10 scale
+# angular are effect around -0.03
+# both very different from 0 on the scale above....
+
+
+# how is the spatial attention component flat for so many of these?
+
 
 # --------------------------------------------------------------------------------------------------------
 # PLOT/ANALYZE INDIVIDUAL FISH FITS
 # --------------------------------------------------------------------------------------------------------
 
-# Loom seems unimportant -- exclude from analyses?
+# Got pretty good spatial fits with:
+# array([-3.34765814,  2.00834274,  0.63941595, -0.37718821,  2.10395955,
+#         0.59651847, -3.46588322])
+
+# First,
+# Then, find a way to do a summary of other fit stats on the detection field plot.
+# Graphical?
+
+# Work on spreading out prey types somehow
+test_fish = runner.fishes[0]
+fig3d = test_fish.plot_predicted_detection_field(colorMax=None, bgcolor=(0, 0, 0))
+
+for type in test_fish.cforager.get_prey_types():
+    print("Prey lengths are {0:.4f} for type {1} with conc {2}".format(type.get_length(), type.get_name(), type.get_prey_drift_concentration()))
+
+
+test_fish.cforager.analyze_results() # required for calculating diet proportion
+observed_diet = []
+predicted_diet = []
+labels = []
+diet_obj_count = 0
+diet_obj_total = 0
+dietdata = [item for item in test_fish.fielddata['diet_by_category'].values() if item['number'] is not None]
+for dd in sorted(dietdata, key=lambda x: x['number']):
+    pt = test_fish.cforager.get_prey_type(dd['name'])
+    labels.append(pt.get_name())
+    predicted = test_fish.cforager.get_diet_proportion_for_prey_type(pt)
+    observed = dd['diet_proportion']
+    if predicted > 0 or observed > 0:
+        diet_obj_count += 1
+        diet_obj_total += (predicted - observed) ** 2
+    observed_diet.append(observed)
+    predicted_diet.append(predicted)
+diet_rmse = np.sqrt(diet_obj_total / diet_obj_count)
+
+fig = plt.figure(figsize=(6, 4))
+gs = gridspec.GridSpec(1, 1)
+ax1,  = [fig.add_subplot(ss) for ss in gs]
+pred_handle = ax1.barh(np.arange(1, 1+len(predicted_diet)), predicted_diet, align='center', height=0.8, tick_label=labels, label="Predicted")
+obs_handle = ax1.barh(np.arange(1, 1+len(predicted_diet)), -np.array(observed_diet), align='center', height=0.8, tick_label=labels, label="Observed")
+ax1.legend(handles=[pred_handle, obs_handle])#, loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=2, fancybox=True, shadow=True)
+ax1.set_xlim(-1, 1)
+ax1.axvline(0, color='k', linewidth=1)
+plt.xticks([-1, 0, 1], [1, 0, 1])
+plt.figtext(0.78, 0.72, "rmse={0:.4f}".format(diet_rmse))
+ax1.set_title("Diet proportions")
+gs.tight_layout(fig, rect=[0, 0, 1.0, 1.0])
+plt.show()
+
+print("Total of predicted diet is {0:.6f}".format(np.array(predicted_diet).sum()))
+
+#runner.optimize_forager_with_parameters(test_fish, *X_best[-1])
+#test_fish.cforager.print_strategy()
+
+
+
+
+# now need a way to show attempt rate, focal velocity, proportion ingested, NREI
+
+# just make each its own graph
 #
 
-
-test_fish = runner.fishes[14]
-runner.optimize_forager_with_parameters(test_fish, *X_best[-1])
-test_fish.cforager.print_strategy()
-
-fig3d = test_fish.plot_predicted_detection_field(gridsize=50j, colorMax=None, bgcolor=(0, 0, 0))
 
 test_fish.foraging_point_distribution_distance(verbose=False, plot=True)
 

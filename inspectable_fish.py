@@ -28,7 +28,7 @@ class InspectableFish(ftf.FieldTestFish):
             self.cforager.passage_time: "Time available to detect (s)"
         }
 
-    def plot_predicted_detection_field(self, gridsize=30j, stopButton=False, colorMax=None, **kwargs):
+    def plot_predicted_detection_field(self, gridsize=50j, stopButton=False, colorMax=None, **kwargs):
         def func(x, y, z):
             return self.cforager.relative_pursuits_by_position(0.01 * x, 0.01 * y, 0.01 * z)
 
@@ -42,7 +42,7 @@ class InspectableFish(ftf.FieldTestFish):
         mlab.clf(myFig)
         head_position = np.array((0, 0, 0))
         tail_position = np.array((0, -self.fork_length_cm, 0))
-        Fish3D.fish3D(head_position, tail_position, self.species, myFig, color=tuple(abs(np.random.rand(3))),
+        Fish3D.fish3D(head_position, tail_position, self.species, myFig, color=self.color,
                       world_vertical=np.array([0, 0, 1]))
         vmax = np.max(s) if colorMax is None else colorMax
         vol = mlab.pipeline.volume(mlab.pipeline.scalar_field(x, y, z, s), vmin=0.0, vmax=vmax)
@@ -62,27 +62,69 @@ class InspectableFish(ftf.FieldTestFish):
                 return abs(sums_interp(x) - pct)
 
             return \
-            scipy.optimize.minimize(objfn, [1], method='L-BFGS-B', bounds=[(min(predictions), max(predictions))]).x[0]
+                scipy.optimize.minimize(objfn, [1], method='L-BFGS-B', bounds=[(min(predictions), max(predictions))]).x[
+                    0]
+
+        def my_otf_value(v):
+            return (v / 4) ** 1.8
 
         flat_s = s.flatten()
         nonzero_s = flat_s[flat_s > 0]
         otf = PiecewiseFunction()
         otf.add_point(0.0, 0.0)
-        otf.add_point(rel_pursuits_value_percentile(0.05), 0.006)
-        otf.add_point(rel_pursuits_value_percentile(0.15), 0.008)
-        otf.add_point(rel_pursuits_value_percentile(0.25), 0.013)
-        otf.add_point(rel_pursuits_value_percentile(0.35), 0.022)
-        otf.add_point(rel_pursuits_value_percentile(0.50), 0.03)
-        otf.add_point(rel_pursuits_value_percentile(0.65), 0.04)
-        otf.add_point(rel_pursuits_value_percentile(0.80), 0.05)
-        otf.add_point(rel_pursuits_value_percentile(0.90), 0.10)
+        for v in np.linspace(0.05, 1.0, 40):
+            otf_val = my_otf_value(v)
+            print("Adding point {1:.3f} for percentile {0:.2f}".format(v, otf_val))
+            otf.add_point(rel_pursuits_value_percentile(v), otf_val)
+        # otf.add_point(0.0, 0.0)
+        # otf.add_point(rel_pursuits_value_percentile(0.05), 0.006)
+        # otf.add_point(rel_pursuits_value_percentile(0.15), 0.008)
+        # otf.add_point(rel_pursuits_value_percentile(0.25), 0.013)
+        # otf.add_point(rel_pursuits_value_percentile(0.35), 0.022)
+        # otf.add_point(rel_pursuits_value_percentile(0.50), 0.03)
+        # otf.add_point(rel_pursuits_value_percentile(0.65), 0.04)
+        # otf.add_point(rel_pursuits_value_percentile(0.80), 0.05)
+        # otf.add_point(rel_pursuits_value_percentile(0.90), 0.10)
         vol._otf = otf
         vol._volume_property.set_scalar_opacity(otf)
 
         (px, py, pz) = 100 * np.transpose(np.asarray(self.fielddata['detection_positions']))
         point_radius = 0.005 * self.fork_length_cm
         d = np.repeat(2 * point_radius, px.size)  # creates an array of point diameters
-        mlab.points3d(py, -px, pz, d, color=kwargs.get('pointcolor', self.color), scale_factor=10, resolution=12, opacity=1.0, figure=myFig)
+        mlab.points3d(py, -px, pz, d, color=kwargs.get('pointcolor', self.color), scale_factor=10, resolution=12,
+                      opacity=1.0, figure=myFig)
+
+        if kwargs.get('surfaces', True):
+            sx = []
+            sy = []
+            sz = []
+            bz = []
+            rspace = np.linspace(-r, r, 100)
+            for pbx in rspace:
+                for pby in rspace:
+                    if np.sqrt(pbx * pbx + pby * pby) < 100 * self.cforager.get_max_radius():
+                        sx.append(pbx)
+                        sy.append(pby)
+                        bz.append(100 * self.fielddata['bottom_z_m'])
+                        sz.append(100 * self.fielddata['surface_z_m'])
+            pts = mlab.points3d(sx, sy, bz)
+            bottom_mesh = mlab.pipeline.delaunay2d(pts)
+            mlab.pipeline.surface(bottom_mesh, opacity=0.4, color=(0.7, 0.4, 0.3))
+            pts.remove()
+            pts = mlab.points3d(sx, sy, sz)
+            surface_mesh = mlab.pipeline.delaunay2d(pts)
+            mlab.pipeline.surface(surface_mesh, opacity=0.1, color=(0.0, 1.0, 1.0))
+            pts.remove()
+        if kwargs.get('velocities', True):
+            def velocity_function_unvectorized(vx, vy, vz, ):
+                return (0, -100 * self.cforager.water_velocity(vz), 0)
+
+            velocity_function = np.vectorize(velocity_function_unvectorized)
+            velocities_z = 0.9 * np.linspace(100 * self.fielddata['bottom_z_m'], 100 * self.fielddata['surface_z_m'], 8)
+            velocities_x = np.repeat(0, len(velocities_z))
+            velocities_y = np.repeat(-self.fork_length_cm * 1.3, len(velocities_z))
+            mlab.quiver3d(velocities_x, velocities_y, velocities_z, velocity_function, color=(1, 1, 0))
+
         mlab.show(stop=stopButton)
         return myFig
 

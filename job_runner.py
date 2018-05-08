@@ -236,7 +236,7 @@ class JobRunner:
                 self.run_jobs()
             else:
                 self.cursor.execute("UPDATE job_runners SET current_task=\"Awaiting Job Creation\" WHERE id={0}".format(self.runner_id))
-                sleep(15)
+                sleep(30)
                 self.run_jobs()
         else:
             self.cursor.execute("UPDATE job_results SET start_time=NOW() WHERE id={0}".format(job_data['id']))

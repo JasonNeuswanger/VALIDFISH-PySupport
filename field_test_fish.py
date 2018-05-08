@@ -42,8 +42,26 @@ objective_weights = {
     # 'detection_distances_combined': 5,
     # 'detection_angles_combined': 5,
     'spatial': 5,
-    'diet_proportions_combined': 2
+    'diet_proportions_combined': 3
 }
+
+# CALCULATE OVERALL AVERAGE PREY TYPE ATTRIBUTES for filling in mass/energy in cases where it shows up as 0 in the fish
+# drift data. Mostly this is for debris length purposes, because anytime there's prey in the drift, there are length
+# and energy values for that particular site and the modeling is based on that. But we need some data here for debris
+# length and therefore debris visibility/distraction in classes with no prey counted at the current site.
+all_prey_lengths = {}
+all_prey_energies = {}
+for fish_key, fish_data in json_data.items():
+    for prey_type_key, prey_type_data in fish_data['prey_categories_characteristics'].items():
+        if prey_type_key not in all_prey_lengths.keys(): all_prey_lengths[prey_type_key] = []
+        if prey_type_key not in all_prey_energies.keys(): all_prey_energies[prey_type_key] = []
+        if prey_type_data['mean_prey_energy'] > 0:
+            all_prey_energies[prey_type_key].append(prey_type_data['mean_prey_energy'])
+        if prey_type_data['mean_prey_length'] > 0:
+            all_prey_lengths[prey_type_key].append(prey_type_data['mean_prey_length'])
+prey_type_mean_lengths = {prey_type_number : np.mean(np.array(all_prey_lengths[prey_type_number])) for prey_type_number in all_prey_lengths.keys()}
+prey_type_mean_energies = {prey_type_number : np.mean(np.array(all_prey_energies[prey_type_number])) for prey_type_number in all_prey_lengths.keys()}
+
 
 class FieldTestFish:
 
@@ -81,11 +99,13 @@ class FieldTestFish:
             INTERPOLATION_ROOT                      # base directory for maneuver interpolation files
         )
         for pt in data['prey_categories_characteristics'].values():
+            mean_prey_length = pt['mean_prey_length'] if pt['mean_prey_length'] > 0 else prey_type_mean_lengths[pt['number']]
+            mean_prey_energy = pt['mean_prey_energy'] if pt['mean_prey_energy'] > 0 else prey_type_mean_energies[pt['number']]
             self.cforager.add_prey_type(
                 pt['number'],
                 pt['name'],
-                pt['mean_prey_length'] * 0.001,  # convert prey length from data units (mm) to model units (m)
-                pt['mean_prey_energy'],
+                mean_prey_length * 0.001,  # convert prey length from data units (mm) to model units (m)
+                mean_prey_energy,
                 pt['crypticity'],
                 pt['prey_drift_concentration'],
                 pt['debris_drift_concentration'],
@@ -149,13 +169,9 @@ class FieldTestFish:
         if plot:
             import matplotlib.pyplot as plt
             plt.clf()
-            # prediction_cdf = sm.distributions.ECDF(predictions)
             plot_x = np.linspace(min(predictions), max(predictions), num=200)
-            # plot_y_predictions = prediction_cdf(plot_x)
             plot_y_observations = observation_cdf(plot_x)
-            # plt.step(plot_x, plot_y_predictions, label="Predictions ECDF")
             plt.step(plot_x, plot_y_observations, label="Observed")
-            # plt.step(predictions, sums, label="Sums")
             plot_y_sums = sums_interp(plot_x)
             plt.step(plot_x, plot_y_sums, label="Predicted")
             plt.legend(loc=4)
@@ -206,7 +222,7 @@ class FieldTestFish:
                 diet_obj_count += 1
                 diet_obj_total += (predicted - observed) ** 2
                 vprint("For diet category '{0}', predicted proportion {1:.3f}, observed proportion {2:.3f}.".format(pt.get_name(), predicted, observed))
-        diet_part = (diet_obj_total / diet_obj_count) * objective_weights['diet_proportions_combined']
+        diet_part = np.sqrt(diet_obj_total / diet_obj_count) * objective_weights['diet_proportions_combined'] # RMS error, weighted
         # NREI -- not used in objective function, just for curiosity/printing.
         predicted_NREI = self.cforager.NREI()
         observed_NREI = self.fielddata['empirical_NREI_J_per_s']
