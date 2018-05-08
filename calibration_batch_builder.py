@@ -9,7 +9,7 @@ CORES_PER_NODE = int(argv[2])
 JOB_NAME = argv[3]
 
 # Example usage:
-# python calibration_batch_builder.py 30 14 'ThirdFiveOfEach'
+# python calibration_batch_builder.py 40 14 'FourthFiveOfEach'
 
 # COMMON CODE FOR ANY JOB
 

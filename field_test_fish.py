@@ -87,7 +87,7 @@ class FieldTestFish:
             10,                                     # alpha_d
             0.05,                                   # A_0
             0.1,                                    # t_s_0
-            0.3,                                    # beta
+            10,                                    # beta
             data['bottom_z_m'],                     # bottom_z
             data['surface_z_m'],                    # surface_z
             int(data['temperature_C']),             # temperature (integer)
@@ -99,8 +99,8 @@ class FieldTestFish:
             INTERPOLATION_ROOT                      # base directory for maneuver interpolation files
         )
         for pt in data['prey_categories_characteristics'].values():
-            mean_prey_length = pt['mean_prey_length'] if pt['mean_prey_length'] > 0 else prey_type_mean_lengths[pt['number']]
-            mean_prey_energy = pt['mean_prey_energy'] if pt['mean_prey_energy'] > 0 else prey_type_mean_energies[pt['number']]
+            mean_prey_length = pt['mean_prey_length'] if pt['mean_prey_length'] > 0 else prey_type_mean_lengths[str(pt['number'])]
+            mean_prey_energy = pt['mean_prey_energy'] if pt['mean_prey_energy'] > 0 else prey_type_mean_energies[str(pt['number'])]
             self.cforager.add_prey_type(
                 pt['number'],
                 pt['name'],
