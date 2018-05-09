@@ -9,7 +9,7 @@ import GPyOpt as gpo  # note, need to pip install both this and sobol_seq
 from GPyOpt.experiment_design import initial_design
 
 all_parameters = ['delta_0', 'alpha_tau', 'alpha_d', 'beta', 'A_0', 't_s_0', 'discriminability', 'flicker_frequency', 'tau_0', 'nu']
-log_scaled_parameters = ['delta_0', 'alpha_tau', 'alpha_d', 'beta', 'A_0', 't_s_0', 'tau_0', 'nu']
+log_scaled_parameters = ['delta_0', 'alpha_tau', 'alpha_d', 't_s_0', 'tau_0', 'nu']
 
 IS_MAC = (uname()[0] == 'Darwin')
 if IS_MAC:

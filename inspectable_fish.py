@@ -74,7 +74,6 @@ class InspectableFish(ftf.FieldTestFish):
         otf.add_point(0.0, 0.0)
         for v in np.linspace(0.05, 1.0, 40):
             otf_val = my_otf_value(v)
-            print("Adding point {1:.3f} for percentile {0:.2f}".format(v, otf_val))
             otf.add_point(rel_pursuits_value_percentile(v), otf_val)
         # otf.add_point(0.0, 0.0)
         # otf.add_point(rel_pursuits_value_percentile(0.05), 0.006)
@@ -91,7 +90,7 @@ class InspectableFish(ftf.FieldTestFish):
         (px, py, pz) = 100 * np.transpose(np.asarray(self.fielddata['detection_positions']))
         point_radius = 0.005 * self.fork_length_cm
         d = np.repeat(2 * point_radius, px.size)  # creates an array of point diameters
-        mlab.points3d(py, -px, pz, d, color=kwargs.get('pointcolor', self.color), scale_factor=10, resolution=12,
+        mlab.points3d(py, -px, pz, d, color=kwargs.get('pointcolor', self.color), scale_factor=8, resolution=12,
                       opacity=1.0, figure=myFig)
 
         if kwargs.get('surfaces', True):

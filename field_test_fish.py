@@ -85,9 +85,9 @@ class FieldTestFish:
             1e-4,                                   # delta_0
             10,                                     # alpha_tau
             10,                                     # alpha_d
-            0.05,                                   # A_0
+            0.5,                                    # A_0
             0.1,                                    # t_s_0
-            10,                                    # beta
+            0.5,                                    # beta
             data['bottom_z_m'],                     # bottom_z
             data['surface_z_m'],                    # surface_z
             int(data['temperature_C']),             # temperature (integer)
@@ -191,7 +191,6 @@ class FieldTestFish:
             if verbose:
                 print(text)
         vprint("Evaluating fit to field data for one solution.")
-        objective_value = 0  # objective function value to be minimized... built up in pieces through this function
         self.cforager.analyze_results()
         # Individually important fields
         predicted_fa_rate = self.cforager.get_foraging_attempt_rate()
@@ -225,10 +224,12 @@ class FieldTestFish:
         diet_part = np.sqrt(diet_obj_total / diet_obj_count) * objective_weights['diet_proportions_combined'] # RMS error, weighted
         # NREI -- not used in objective function, just for curiosity/printing.
         predicted_NREI = self.cforager.NREI()
+        predicted_GREI = self.cforager.GREI()
+        predicted_focal_swimming_cost = self.cforager.get_focal_swimming_cost()
+        predicted_maneuver_cost_rate = self.cforager.maneuver_cost_rate()
         observed_NREI = self.fielddata['empirical_NREI_J_per_s']
-        #objective_value = fa_rate_part + velocity_part + proportion_ingested_part + distance_part + angle_part + diet_part
         objective_value = fa_rate_part + velocity_part + proportion_ingested_part + spatial_part + diet_part
-        vprint("NREI: predicted {0:.5f} J/s, observed estimate {1:.5f} J/s.".format(predicted_NREI, observed_NREI))
+        vprint("NREI: predicted {0:.5f} J/s, observed estimate {1:.5f} J/s. (Prediced gross: {2:.5f}, focal cost: {3:.5f}, maneuver cost: {4:.5f})".format(predicted_NREI, observed_NREI, predicted_GREI, predicted_focal_swimming_cost, predicted_maneuver_cost_rate))
         # vprint("Objective function value is {0:.5f}. (Contributions: attempt rate {1:.3f}, velocity {2:.3f}, ingestion {3:.3f}, distance {4:.3f}, angle {5:.3f}, diet {6:.3f}).\n".format(
         #     objective_value, fa_rate_part, velocity_part, proportion_ingested_part, distance_part, angle_part, diet_part))
         vprint(

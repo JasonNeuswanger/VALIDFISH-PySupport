@@ -12,8 +12,8 @@ from job_runner import JobRunner
 export_plots = True
 show_plots = False
 
-job_name = 'ThirdFiveOfEach'
-#job_name = 'SecondFiveGrayling'
+job_name = 'FourthFiveOfEach'
+#job_name = 'ThirdFiveDollies'
 
 runner = JobRunner(job_name, readonly=True)
 figure_folder = os.path.join(os.path.sep, 'Users', 'Jason', 'Desktop', 'TempFig', job_name)
@@ -212,12 +212,13 @@ test_fish.plot_tau_components(x=0.08, z=0.08)
 # Then, find a way to do a summary of other fit stats on the detection field plot.
 # Graphical?
 
-# Work on spreading out prey types somehow
-test_fish = runner.fishes[0]
-fig3d = test_fish.plot_predicted_detection_field(colorMax=None, bgcolor=(0, 0, 0))
+# We haven't really got the reasons why the Chinook with index 2 should have such a long
+# detection field. Also how does its velocity match?
 
-for type in test_fish.cforager.get_prey_types():
-    print("Prey lengths are {0:.4f} for type {1} with conc {2}".format(type.get_length(), type.get_name(), type.get_prey_drift_concentration()))
+# Grayling 14, dolly 8,
+
+test_fish = runner.fishes[4]
+fig3d = test_fish.plot_predicted_detection_field(colorMax=None, bgcolor=(0, 0, 0))
 
 
 test_fish.cforager.analyze_results() # required for calculating diet proportion
