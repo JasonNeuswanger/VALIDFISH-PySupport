@@ -185,6 +185,7 @@ class JobRunner:
                     ti_p=self.value_from_X(X, 'ti_p'),
                     sigma_p_0=self.value_from_X(X, 'sigma_p_0')
                     )
+        print(query)
         return query
 
     def create_initial_jobs(self):
