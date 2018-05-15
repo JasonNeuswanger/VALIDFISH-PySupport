@@ -12,7 +12,7 @@ from job_runner import JobRunner
 export_plots = True
 show_plots = False
 
-job_name = 'FourthFiveOfEach'
+job_name = 'FifthFifteen'
 #job_name = 'ThirdFiveDollies'
 
 runner = JobRunner(job_name, readonly=True)
@@ -181,8 +181,6 @@ for fish in runner.fishes:
 # tau components flatlined when i accidentally specified x/y instead of x/z... how?
 # z was automatically chosen as what?
 
-test_fish.plot_tau_components(x=0.03, z=0.03)
-test_fish.plot_tau_components(x=0.08, z=0.08)
 
 # This is an issue with the new formula... difficulty flattens off to an asymptote as
 # distance increases, rather than actually increasing tau it just fails to decrease it.
@@ -217,7 +215,7 @@ test_fish.plot_tau_components(x=0.08, z=0.08)
 
 # Grayling 14, dolly 8,
 
-test_fish = runner.fishes[4]
+test_fish = runner.fishes[0]
 fig3d = test_fish.plot_predicted_detection_field(colorMax=None, bgcolor=(0, 0, 0))
 
 

@@ -8,8 +8,8 @@ import numpy as np
 import GPyOpt as gpo  # note, need to pip install both this and sobol_seq
 from GPyOpt.experiment_design import initial_design
 
-all_parameters = ['delta_0', 'alpha_tau', 'alpha_d', 'beta', 'A_0', 't_s_0', 'discriminability', 'flicker_frequency', 'tau_0', 'nu']
-log_scaled_parameters = ['delta_0', 'alpha_tau', 'alpha_d', 't_s_0', 'tau_0', 'nu']
+all_parameters = ['delta_0', 'alpha_tau', 'alpha_d', 'beta', 'A_0', 'flicker_frequency', 'tau_0', 'nu_0', 'discriminability', 'delta_p', 'omega_p', 'ti_p', 'sigma_p_0']
+log_scaled_parameters = ['delta_0', 'alpha_tau', 'alpha_d', 'tau_0', 'nu_0', 'delta_p', 'omega_p', 'ti_p', 'sigma_p_0']
 
 IS_MAC = (uname()[0] == 'Darwin')
 if IS_MAC:
@@ -165,9 +165,9 @@ class JobRunner:
 
     def insert_query_from_X(self, X, is_initial):
         query = "INSERT INTO job_results (job_name, is_initial, runner_id, start_time, completed_time, objective_value,\
-                   delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu) VALUES \
+                   delta_0, alpha_tau, alpha_d, beta, A_0, flicker_frequency, tau_0, nu_0, discriminability, delta_p, omega_p, ti_p, sigma_p_0) VALUES \
                    (\"{job_name}\", {is_initial}, {runner_id}, NULL, NULL, NULL, \
-                   {delta_0}, {alpha_tau}, {alpha_d}, {beta}, {A_0}, {t_s_0}, {discriminability}, {flicker_frequency}, {tau_0}, {nu})" \
+                   {delta_0}, {alpha_tau}, {alpha_d}, {beta}, {A_0}, {flicker_frequency}, {tau_0}, {nu_0}, {discriminability}, {delta_p}, {omega_p}, {ti_p}, {sigma_p_0})" \
             .format(job_name=self.job_name,
                     is_initial=is_initial,
                     runner_id=self.runner_id,
@@ -176,11 +176,15 @@ class JobRunner:
                     alpha_d=self.value_from_X(X, 'alpha_d'),
                     beta=self.value_from_X(X, 'beta'),
                     A_0=self.value_from_X(X, 'A_0'),
-                    t_s_0=self.value_from_X(X, 't_s_0'),
-                    discriminability=self.value_from_X(X, 'discriminability'),
                     flicker_frequency=self.value_from_X(X, 'flicker_frequency'),
                     tau_0=self.value_from_X(X, 'tau_0'),
-                    nu=self.value_from_X(X, 'nu'))
+                    nu_0=self.value_from_X(X, 'nu_0'),
+                    discriminability=self.value_from_X(X, 'discriminability'),
+                    delta_p=self.value_from_X(X, 'delta_p'),
+                    omega_p=self.value_from_X(X, 'omega_p'),
+                    ti_p=self.value_from_X(X, 'ti_p'),
+                    sigma_p_0=self.value_from_X(X, 'sigma_p_0')
+                    )
         return query
 
     def create_initial_jobs(self):
@@ -220,29 +224,24 @@ class JobRunner:
             self.cursor.execute(self.insert_query_from_X(X, False))
 
     def run_jobs(self):
-        if self.readonly:
-            print("ERROR: Cannot run jobs in readonly mode. It is only for analysis of results.")
-            return
-        self.load_job_properties()  # update instructions (which job, etc) every time
-        self.cursor.execute("SELECT id FROM job_results WHERE job_name=\"{0}\" LIMIT 1".format(self.job_name))
-        if self.cursor.fetchone() is None:
-            self.create_initial_jobs()
-        self.cursor.execute("SELECT * FROM job_results WHERE start_time IS NULL AND job_name=\"{0}\" LIMIT 1".format(self.job_name))
-        job_data = self.cursor.fetchone()
-        if job_data is None:
-            self.cursor.execute("SELECT * FROM job_runners WHERE current_task=\"Creating New Jobs\"")
+        while True:
+            self.load_job_properties()
+            self.cursor.execute("SELECT id FROM job_results WHERE job_name=\"{0}\" LIMIT 1".format(self.job_name))
             if self.cursor.fetchone() is None:
-                self.create_iterated_jobs()
-                self.run_jobs()
-            else:
-                self.cursor.execute("UPDATE job_runners SET current_task=\"Awaiting Job Creation\" WHERE id={0}".format(self.runner_id))
-                sleep(30)
-                self.run_jobs()
-        else:
+                self.create_initial_jobs()
+            job_data = None
+            while job_data is None:
+                self.cursor.execute("SELECT * FROM job_results WHERE start_time IS NULL AND job_name=\"{0}\" LIMIT 1".format(self.job_name))
+                job_data = self.cursor.fetchone()
+                if job_data is None:
+                    self.cursor.execute("SELECT * FROM job_runners WHERE current_task=\"Creating New Jobs\"")
+                    if self.cursor.fetchone() is None:
+                        self.create_iterated_jobs()
+                    else:
+                        sleep(15)
             self.cursor.execute("UPDATE job_results SET start_time=NOW() WHERE id={0}".format(job_data['id']))
             self.cursor.execute("UPDATE job_runners SET current_task=\"Running Job {1}\" WHERE id={0}".format(self.runner_id, job_data['id']))
             param_values = [job_data[param] for param in self.parameters_to_optimize]
             obj_value = self.objective_function(job_data['id'], *param_values)
             self.cursor.execute("UPDATE job_results SET completed_time=NOW(), objective_value={1}, progress=1.0 WHERE id={0}".format(job_data['id'], obj_value))
             self.cursor.execute("UPDATE job_descriptions SET iterations_completed=(SELECT COUNT(*) FROM job_results WHERE job_name=\"{0}\" AND objective_value IS NOT NULL) WHERE job_name=\"{0}\"".format(self.job_name))
-            self.run_jobs()

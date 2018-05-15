@@ -39,8 +39,6 @@ objective_weights = {
     'foraging_attempt_rate': 1,
     'focal_velocity': 1,
     'proportion_ingested': 1,
-    # 'detection_distances_combined': 5,
-    # 'detection_angles_combined': 5,
     'spatial': 5,
     'diet_proportions_combined': 3
 }
@@ -73,29 +71,31 @@ class FieldTestFish:
         self.species = data['species']
         self.label = data['label']
         self.fork_length_cm = data['fork_length_cm']
+
         self.cforager = vf.Forager(
             data['fork_length_cm'],                 # fork length (cm)
             data['mass_g'],                         # mass (g)
-            0.02,                                   # delta_min (min angular size attended)
             1.0,                                    # sigma_A
             1.2 * data['focal_velocity_m_per_s'],   # mean_column_velocity
-            0.3,                                    # saccade_time
-            0.8,                                    # discrimination_threshold
+            0.5,                                    # inspection_time
+            2.0,                                    # discrimination_threshold
             -1,                                     # search image
             1e-4,                                   # delta_0
             10,                                     # alpha_tau
             10,                                     # alpha_d
             0.5,                                    # A_0
-            0.1,                                    # t_s_0
             0.5,                                    # beta
             data['bottom_z_m'],                     # bottom_z
             data['surface_z_m'],                    # surface_z
             int(data['temperature_C']),             # temperature (integer)
-            0.05,                                   # bed_roughness
-            2.5,                                    # discriminability
-            0.1,                                    # tau_0
-            30,                                     # flicker frequency
-            1e-3,                                   # nu
+            0.5,                                    # tau_0
+            50,                                     # flicker frequency
+            1e-3,                                   # nu_0
+            2.0,                                    # discriminability
+            1e-2,                                   # delta_p
+            3.0,                                    # omega_p
+            0.5,                                    # ti_p
+            1.0,                                    # sigma_p_0
             INTERPOLATION_ROOT                      # base directory for maneuver interpolation files
         )
         for pt in data['prey_categories_characteristics'].values():
@@ -119,11 +119,14 @@ class FieldTestFish:
             'alpha_d': self.cforager.get_parameter_bounds(vf.Forager.Parameter.alpha_d),
             'beta': self.cforager.get_parameter_bounds(vf.Forager.Parameter.beta),
             'A_0': self.cforager.get_parameter_bounds(vf.Forager.Parameter.A_0),
-            't_s_0': self.cforager.get_parameter_bounds(vf.Forager.Parameter.t_s_0),
-            'discriminability': self.cforager.get_parameter_bounds(vf.Forager.Parameter.discriminability),
             'flicker_frequency': self.cforager.get_parameter_bounds(vf.Forager.Parameter.flicker_frequency),
             'tau_0': self.cforager.get_parameter_bounds(vf.Forager.Parameter.tau_0),
-            'nu': self.cforager.get_parameter_bounds(vf.Forager.Parameter.nu)
+            'nu_0': self.cforager.get_parameter_bounds(vf.Forager.Parameter.nu_0),
+            'discriminability': self.cforager.get_parameter_bounds(vf.Forager.Parameter.discriminability),
+            'delta_p': self.cforager.get_parameter_bounds(vf.Forager.Parameter.delta_p),
+            'omega_p': self.cforager.get_parameter_bounds(vf.Forager.Parameter.omega_p),
+            'ti_p': self.cforager.get_parameter_bounds(vf.Forager.Parameter.ti_p),
+            'sigma_p_0': self.cforager.get_parameter_bounds(vf.Forager.Parameter.sigma_p_0)
         }
 
     def foraging_point_distribution_distance(self, verbose=True, plot=False):
@@ -240,31 +243,31 @@ class FieldTestFish:
 
     def optimize(self, iterations, pack_size, verbose=True, use_chaos=False, use_dynamic_C=False, use_exponential_decay=False, use_levy=False, use_only_alpha=False, use_weighted_alpha=True):
         opt = vf.Optimizer(self.cforager, iterations, pack_size, verbose)
-        opt.set_algorithm_options(use_chaos, use_dynamic_C, use_exponential_decay, use_levy, use_only_alpha, use_weighted_alpha)
         return opt.optimize_forager()  # returns array of fitnesses by step
 
     def save_state(self):
-        delta_0 = self.cforager.get_parameter(vf.Forager.Parameter.delta_0)
-        alpha_tau = self.cforager.get_parameter(vf.Forager.Parameter.alpha_tau)
-        alpha_d = self.cforager.get_parameter(vf.Forager.Parameter.alpha_d)
-        beta = self.cforager.get_parameter(vf.Forager.Parameter.beta)
-        A_0 = self.cforager.get_parameter(vf.Forager.Parameter.A_0)
-        t_s_0 = self.cforager.get_parameter(vf.Forager.Parameter.t_s_0)
-        discriminability = self.cforager.get_parameter(vf.Forager.Parameter.discriminability)
-        flicker_frequency = self.cforager.get_parameter(vf.Forager.Parameter.flicker_frequency)
-        tau_0 = self.cforager.get_parameter(vf.Forager.Parameter.tau_0)
-        nu = self.cforager.get_parameter(vf.Forager.Parameter.nu)
-
-        delta_min = self.cforager.get_strategy(vf.Forager.Strategy.delta_min)
-        sigma_A = self.cforager.get_strategy(vf.Forager.Strategy.sigma_A)
-        mean_column_velocity = self.cforager.get_strategy(vf.Forager.Strategy.mean_column_velocity)
-        saccade_time = self.cforager.get_strategy(vf.Forager.Strategy.saccade_time)
-        discrimination_threshold = self.cforager.get_strategy(vf.Forager.Strategy.discrimination_threshold)
-        search_image = self.cforager.get_strategy(vf.Forager.Strategy.search_image)
-
+        # These parameter need to be saved in the dict in the order they're called by set_strategies() and set_parameters()
         save_dict = {
-            'parameters': [delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0, nu],
-            'strategies': [delta_min, sigma_A, mean_column_velocity, saccade_time, discrimination_threshold, search_image]
+            'parameters': [self.cforager.get_parameter(vf.Forager.Parameter.delta_0),
+                           self.cforager.get_parameter(vf.Forager.Parameter.alpha_tau),
+                           self.cforager.get_parameter(vf.Forager.Parameter.alpha_d),
+                           self.cforager.get_parameter(vf.Forager.Parameter.beta),
+                           self.cforager.get_parameter(vf.Forager.Parameter.A_0),
+                           self.cforager.get_parameter(vf.Forager.Parameter.flicker_frequency),
+                           self.cforager.get_parameter(vf.Forager.Parameter.tau_0),
+                           self.cforager.get_parameter(vf.Forager.Parameter.nu_0),
+                           self.cforager.get_parameter(vf.Forager.Parameter.discriminability),
+                           self.cforager.get_parameter(vf.Forager.Parameter.delta_p),
+                           self.cforager.get_parameter(vf.Forager.Parameter.omega_p),
+                           self.cforager.get_parameter(vf.Forager.Parameter.ti_p),
+                           self.cforager.get_parameter(vf.Forager.Parameter.sigma_p_0)
+                           ],
+            'strategies': [self.cforager.get_strategy(vf.Forager.Strategy.sigma_A),
+                           self.cforager.get_strategy(vf.Forager.Strategy.mean_column_velocity),
+                           self.cforager.get_strategy(vf.Forager.Strategy.inspection_time),
+                           self.cforager.get_strategy(vf.Forager.Strategy.discrimination_threshold),
+                           self.cforager.get_strategy(vf.Forager.Strategy.search_image)
+                           ]
         }
         with open(TEMP_PICKLE_FOLDER + self.label + ' temp save.pickle', 'wb') as handle:
             pickle.dump(save_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)

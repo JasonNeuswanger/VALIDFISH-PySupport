@@ -34,6 +34,10 @@ class InspectableFish(ftf.FieldTestFish):
 
         vfunc = np.vectorize(func)
         r = 1.05 * 100 * self.cforager.get_max_radius()
+        #zmin = max(-r, self.fielddata['bottom_z_m'])
+        #zmax = min(r, self.fielddata['surface_z_m'])
+        #zgridsize = round(((zmax - zmin) / 2*r) * gridsize)
+        #x, y, z = np.mgrid[-r:r:gridsize, -r:r:gridsize, zmin:zmax:zgridsize]
         x, y, z = np.mgrid[-r:r:gridsize, -r:r:gridsize, -r:r:gridsize]
         s = vfunc(x, y, z)
         figname = "3D Fish Test Figure"
@@ -42,8 +46,7 @@ class InspectableFish(ftf.FieldTestFish):
         mlab.clf(myFig)
         head_position = np.array((0, 0, 0))
         tail_position = np.array((0, -self.fork_length_cm, 0))
-        Fish3D.fish3D(head_position, tail_position, self.species, myFig, color=self.color,
-                      world_vertical=np.array([0, 0, 1]))
+        Fish3D.fish3D(head_position, tail_position, self.species, myFig, color=self.color, world_vertical=np.array([0, 0, 1]))
         vmax = np.max(s) if colorMax is None else colorMax
         vol = mlab.pipeline.volume(mlab.pipeline.scalar_field(x, y, z, s), vmin=0.0, vmax=vmax)
 
@@ -61,9 +64,7 @@ class InspectableFish(ftf.FieldTestFish):
             def objfn(x):
                 return abs(sums_interp(x) - pct)
 
-            return \
-                scipy.optimize.minimize(objfn, [1], method='L-BFGS-B', bounds=[(min(predictions), max(predictions))]).x[
-                    0]
+            return scipy.optimize.minimize(objfn, [1], method='L-BFGS-B', bounds=[(min(predictions), max(predictions))]).x[0]
 
         def my_otf_value(v):
             return (v / 4) ** 1.8
@@ -229,12 +230,11 @@ class InspectableFish(ftf.FieldTestFish):
         fig = plt.figure(figsize=(9, 12))
         gs = gridspec.GridSpec(3, 2)
         ax1, ax2, ax3, ax4, ax5, ax6 = [fig.add_subplot(ss) for ss in gs]
-        self._plot_single_strategy(ax1, vf.Forager.Strategy.delta_min, response_fn, *response_fn_args)
-        self._plot_single_strategy(ax2, vf.Forager.Strategy.sigma_A, response_fn, *response_fn_args)
-        self._plot_single_strategy(ax3, vf.Forager.Strategy.mean_column_velocity, response_fn, *response_fn_args)
-        self._plot_single_strategy(ax4, vf.Forager.Strategy.saccade_time, response_fn, *response_fn_args)
-        self._plot_single_strategy(ax5, vf.Forager.Strategy.discrimination_threshold, response_fn, *response_fn_args)
-        self._plot_single_strategy(ax6, vf.Forager.Strategy.search_image, response_fn, *response_fn_args)
+        self._plot_single_strategy(ax1, vf.Forager.Strategy.sigma_A, response_fn, *response_fn_args)
+        self._plot_single_strategy(ax2, vf.Forager.Strategy.mean_column_velocity, response_fn, *response_fn_args)
+        self._plot_single_strategy(ax3, vf.Forager.Strategy.saccade_time, response_fn, *response_fn_args)
+        self._plot_single_strategy(ax4, vf.Forager.Strategy.discrimination_threshold, response_fn, *response_fn_args)
+        self._plot_single_strategy(ax5, vf.Forager.Strategy.search_image, response_fn, *response_fn_args)
         if 'title' in kwargs: plt.suptitle(kwargs['title'], fontsize=15, fontweight='bold')
         gs.tight_layout(fig, rect=[0, 0, 1.0, 0.95])
         plt.show()
@@ -262,16 +262,17 @@ class InspectableFish(ftf.FieldTestFish):
         fig = plt.figure(figsize=(12, 15))
         gs = gridspec.GridSpec(3, 4)
         ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8, ax9, ax10, ax11, ax12 = [fig.add_subplot(ss) for ss in gs]
-        self._plot_single_parameter(ax1, vf.Forager.Parameter.delta_0, response_fn, *response_fn_args)
-        self._plot_single_parameter(ax2, vf.Forager.Parameter.beta, response_fn, *response_fn_args)
-        self._plot_single_parameter(ax3, vf.Forager.Parameter.A_0, response_fn, *response_fn_args)
-        self._plot_single_parameter(ax4, vf.Forager.Parameter.t_s_0, response_fn, *response_fn_args)
-        self._plot_single_parameter(ax5, vf.Forager.Parameter.discriminability, response_fn, *response_fn_args)
-        self._plot_single_parameter(ax6, vf.Forager.Parameter.flicker_frequency, response_fn, *response_fn_args)
-        self._plot_single_parameter(ax7, vf.Forager.Parameter.tau_0, response_fn, *response_fn_args)
-        self._plot_single_parameter(ax8, vf.Forager.Parameter.alpha_tau, response_fn, *response_fn_args)
-        self._plot_single_parameter(ax9, vf.Forager.Parameter.alpha_d, response_fn, *response_fn_args)
-        self._plot_single_parameter(ax10, vf.Forager.Parameter.nu, response_fn, *response_fn_args)
+        self._plot_single_parameter(ax1, vf.Forager.Parameter.flicker_frequency, response_fn, *response_fn_args)
+        self._plot_single_parameter(ax2, vf.Forager.Parameter.tau_0, response_fn, *response_fn_args)
+        self._plot_single_parameter(ax3, vf.Forager.Parameter.delta_0, response_fn, *response_fn_args)
+        self._plot_single_parameter(ax4, vf.Forager.Parameter.beta, response_fn, *response_fn_args)
+        self._plot_single_parameter(ax5, vf.Forager.Parameter.A_0, response_fn, *response_fn_args)
+        self._plot_single_parameter(ax6, vf.Forager.Parameter.nu, response_fn, *response_fn_args)
+        self._plot_single_parameter(ax7, vf.Forager.Parameter.discriminability, response_fn, *response_fn_args)
+        self._plot_single_parameter(ax8, vf.Forager.Parameter.delta_p, response_fn, *response_fn_args)
+        self._plot_single_parameter(ax9, vf.Forager.Parameter.omega_p, response_fn, *response_fn_args)
+        self._plot_single_parameter(ax10, vf.Forager.Parameter.ti_p, response_fn, *response_fn_args)
+        self._plot_single_parameter(ax11, vf.Forager.Parameter.sigma_p_0, response_fn, *response_fn_args)
 
         if 'title' in kwargs: plt.suptitle(kwargs['title'], fontsize=15, fontweight='bold')
         gs.tight_layout(fig, rect=[0, 0, 1.0, 0.95])
@@ -280,8 +281,8 @@ class InspectableFish(ftf.FieldTestFish):
     def plot_tau_components(self, **kwargs):
         # Plot the relative size of each component of tau
         pt = kwargs.get('pt', self.cforager.get_favorite_prey_type())
-        x = kwargs.get('x', 0.5 * pt.get_max_attended_distance())
-        z = kwargs.get('z', 0.5 * pt.get_max_attended_distance())
+        x = kwargs.get('x', 0.5 * pt.get_max_visible_distance())
+        z = kwargs.get('z', 0.5 * pt.get_max_visible_distance())
         T = self.cforager.passage_time(x, z, pt)
         plot_times = np.linspace(0.01, T - 0.01, 30)
         components_list = [self.cforager.tau_components(t, x, z, pt) for t in plot_times]
@@ -325,8 +326,6 @@ class InspectableFish(ftf.FieldTestFish):
         fig = plt.figure(figsize=(12, 9))
         gs = gridspec.GridSpec(3, 2)
         ax1, ax2, ax3, ax4, ax5, ax6 = [fig.add_subplot(ss) for ss in gs]
-        def t_over_tau(t, x, z, pc):
-            return self.cforager.passage_time(x, z, pc) / self.cforager.tau(t, x, z, pc)
         def detection_pdf(t, x, z, pc):
             tau = self.cforager.tau(t, x, z, pc)
             return np.exp(-t/tau) / tau
@@ -336,8 +335,7 @@ class InspectableFish(ftf.FieldTestFish):
         self._plot_single_strategy(ax2, vf.Forager.Strategy.sigma_A, self.cforager.passage_time, x, z, pc)
         self._plot_single_strategy(ax3, vf.Forager.Strategy.sigma_A, self.cforager.detection_probability, x, z, pc)
         self._plot_single_strategy(ax4, vf.Forager.Strategy.sigma_A, detection_pdf, t, x, z, pc, ylabel='Detection PDF')
-        self._plot_single_strategy(ax5, vf.Forager.Strategy.sigma_A, t_over_tau, t, x, z, pc, ylabel='T/tau')
-        self._plot_single_strategy(ax6, vf.Forager.Strategy.sigma_A, self.cforager.NREI)
+        self._plot_single_strategy(ax5, vf.Forager.Strategy.sigma_A, self.cforager.NREI)
         plt.suptitle("Effects of sigma_A at (x,z)=({0:.2f},{1:.2f}) for {2}".format(x, z, pc.get_name()), fontsize=15, fontweight='bold')
         gs.tight_layout(fig, rect=[0, 0, 1.0, 0.95])
         plt.show()
@@ -352,7 +350,7 @@ class InspectableFish(ftf.FieldTestFish):
         for pt in pts:
             if pt.get_length() < smallest_pt.get_length():
                 smallest_pt = pt
-        fav_radius = fav_pt.get_max_attended_distance()
+        fav_radius = fav_pt.get_max_visible_distance()
         theta = self.cforager.get_field_of_view()
         rho = fav_radius * np.sin(theta/2) if theta < np.pi else fav_radius
         test_x = rho/2 if 'x' not in kwargs.keys() else kwargs['x']
