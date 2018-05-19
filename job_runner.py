@@ -8,9 +8,6 @@ import numpy as np
 import GPyOpt as gpo  # note, need to pip install both this and sobol_seq
 from GPyOpt.experiment_design import initial_design
 
-all_parameters = ['delta_0', 'alpha_tau', 'alpha_d', 'beta', 'A_0', 'flicker_frequency', 'tau_0', 'nu_0', 'discriminability', 'delta_p', 'omega_p', 'ti_p', 'sigma_p_0']
-log_scaled_parameters = ['delta_0', 'alpha_tau', 'alpha_d', 'tau_0', 'nu_0', 'delta_p', 'omega_p', 'sigma_p_0']
-
 IS_MAC = (uname()[0] == 'Darwin')
 if IS_MAC:
     import inspectable_fish
@@ -93,11 +90,12 @@ class JobRunner:
             self.previous_job_properties = self.job_properties
 
     def build_domain(self):
-        self.actual_parameter_bounds = self.fishes[0].parameter_bounds.items()
-        self.scaled_parameter_bounds = {key: ((np.log10(value[0]), np.log10(value[1])) if key in log_scaled_parameters else value) for key, value in self.actual_parameter_bounds}
-        full_domain = [{'name': param, 'type': 'continuous', 'domain': self.scaled_parameter_bounds[param]} for param in all_parameters]
+        self.actual_parameter_bounds = self.fishes[0].parameter_bounds
+        self.scaled_parameter_bounds = self.fishes[0].scaled_parameter_bounds
+        self.all_parameters = self.fishes[0].parameter_names
+        full_domain = [{'name': param, 'type': 'continuous', 'domain': self.scaled_parameter_bounds[param]} for param in self.all_parameters]
         self.fixed_parameters = {}
-        for param in all_parameters:
+        for param in self.all_parameters:
             if self.job_properties[param] is not None:
                 self.fixed_parameters[param] = self.job_properties[param]
         self.domain = [item for item in full_domain if item['name'] not in self.fixed_parameters.keys()]
@@ -112,13 +110,14 @@ class JobRunner:
             print(args)
         assert(len(argnames) == len(args))  # make sure function was called with exact # of arguments to map onto current domain
         def scale(argname, argvalue):
-            return 10**argvalue if argname in log_scaled_parameters else argvalue
+            p = self.fishes[0].cforager.get_parameter_named(argname)
+            return self.fishes[0].cforager.transform_parameter_value(p, argvalue)
         scaled_values = [scale(name, value) for name, value in zip(argnames, args)]
         for key, value in self.fixed_parameters.items():
             argnames.append(key)
             scaled_values.append(value)
         d = dict(zip(argnames, scaled_values))
-        ordered_params = [d[key] for key in all_parameters]
+        ordered_params = [d[key] for key in self.all_parameters]
         objective = 0
         for i, fish in enumerate(self.fishes):
             fish.cforager.set_parameters(*ordered_params)
@@ -135,13 +134,14 @@ class JobRunner:
     def optimize_forager_with_parameters(self, forager, *args):
         argnames = [item['name'] for item in self.domain]
         def scale(argname, argvalue):
-            return 10 ** argvalue if argname in log_scaled_parameters else argvalue
+            p = self.fishes[0].cforager.get_parameter_named(argname)
+            return self.fishes[0].cforager.transform_parameter_value(p, argvalue)
         scaled_values = [scale(name, value) for name, value in zip(argnames, args)]
         for key, value in self.fixed_parameters.items():
             argnames.append(key)
             scaled_values.append(value)
         d = dict(zip(argnames, scaled_values))
-        ordered_params = [d[key] for key in all_parameters]
+        ordered_params = [d[key] for key in self.all_parameters]
         forager.cforager.set_parameters(*ordered_params)
         forager.optimize(self.opt_iters, self.opt_cores, True, False, False, False, False, False, True)
 
@@ -149,7 +149,8 @@ class JobRunner:
         pieces=[]
         for i, value in enumerate(X):
             name = self.domain[i]['name']
-            printed_value = 10**value if name in log_scaled_parameters else value
+            p = self.fishes[0].cforager.get_parameter_named(name)
+            printed_value = self.fishes[0].cforager.transform_parameter_value(p, value)
             if value < 0.001 or value > 1000:
                 pieces.append("{0}={1:.3e}".format(name, printed_value))
             else:

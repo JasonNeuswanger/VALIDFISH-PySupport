@@ -34,10 +34,6 @@ class InspectableFish(ftf.FieldTestFish):
 
         vfunc = np.vectorize(func)
         r = 1.05 * 100 * self.cforager.get_max_radius()
-        #zmin = max(-r, self.fielddata['bottom_z_m'])
-        #zmax = min(r, self.fielddata['surface_z_m'])
-        #zgridsize = round(((zmax - zmin) / 2*r) * gridsize)
-        #x, y, z = np.mgrid[-r:r:gridsize, -r:r:gridsize, zmin:zmax:zgridsize]
         x, y, z = np.mgrid[-r:r:gridsize, -r:r:gridsize, -r:r:gridsize]
         s = vfunc(x, y, z)
         figname = "3D Fish Test Figure"
@@ -227,14 +223,14 @@ class InspectableFish(ftf.FieldTestFish):
         self.cforager.set_strategy(strategy, current_strategy)  # put it back when done
 
     def plot_strategies(self, response_fn, *response_fn_args, **kwargs):
-        fig = plt.figure(figsize=(9, 12))
-        gs = gridspec.GridSpec(3, 2)
-        ax1, ax2, ax3, ax4, ax5, ax6 = [fig.add_subplot(ss) for ss in gs]
+        fig = plt.figure(figsize=(9, 9))
+        gs = gridspec.GridSpec(2, 2)
+        ax1, ax2, ax3, ax4 = [fig.add_subplot(ss) for ss in gs]
         self._plot_single_strategy(ax1, vf.Forager.Strategy.sigma_A, response_fn, *response_fn_args)
         self._plot_single_strategy(ax2, vf.Forager.Strategy.mean_column_velocity, response_fn, *response_fn_args)
-        self._plot_single_strategy(ax3, vf.Forager.Strategy.saccade_time, response_fn, *response_fn_args)
+        self._plot_single_strategy(ax3, vf.Forager.Strategy.inspection_time, response_fn, *response_fn_args)
         self._plot_single_strategy(ax4, vf.Forager.Strategy.discrimination_threshold, response_fn, *response_fn_args)
-        self._plot_single_strategy(ax5, vf.Forager.Strategy.search_image, response_fn, *response_fn_args)
+        #self._plot_single_strategy(ax5, vf.Forager.Strategy.search_image, response_fn, *response_fn_args)
         if 'title' in kwargs: plt.suptitle(kwargs['title'], fontsize=15, fontweight='bold')
         gs.tight_layout(fig, rect=[0, 0, 1.0, 0.95])
         plt.show()
@@ -267,7 +263,7 @@ class InspectableFish(ftf.FieldTestFish):
         self._plot_single_parameter(ax3, vf.Forager.Parameter.delta_0, response_fn, *response_fn_args)
         self._plot_single_parameter(ax4, vf.Forager.Parameter.beta, response_fn, *response_fn_args)
         self._plot_single_parameter(ax5, vf.Forager.Parameter.A_0, response_fn, *response_fn_args)
-        self._plot_single_parameter(ax6, vf.Forager.Parameter.nu, response_fn, *response_fn_args)
+        self._plot_single_parameter(ax6, vf.Forager.Parameter.nu_0, response_fn, *response_fn_args)
         self._plot_single_parameter(ax7, vf.Forager.Parameter.discriminability, response_fn, *response_fn_args)
         self._plot_single_parameter(ax8, vf.Forager.Parameter.delta_p, response_fn, *response_fn_args)
         self._plot_single_parameter(ax9, vf.Forager.Parameter.omega_p, response_fn, *response_fn_args)
@@ -278,7 +274,71 @@ class InspectableFish(ftf.FieldTestFish):
         gs.tight_layout(fig, rect=[0, 0, 1.0, 0.95])
         plt.show()
 
-    def plot_tau_components(self, **kwargs):
+    def plot_discrimination_model(self, **kwargs):
+        # Plot the relative size of each component of tau
+        pt = kwargs.get('pt', self.cforager.get_favorite_prey_type())
+        x = kwargs.get('x', 0.5 * pt.get_max_visible_distance())
+        z = kwargs.get('z', 0.5 * pt.get_max_visible_distance())
+        T = self.cforager.passage_time(x, z, pt)
+        plot_times = np.linspace(0.01, T - 0.01, 30)
+        components_list = [self.cforager.perceptual_variance_components(t, x, z, pt) for t in plot_times]
+        df = DataFrame(components_list)
+        df.set_index('t')
+        components_to_plot = [item for item in components_list[0].keys() if
+                              item not in ['t', 'y'] and not (df[item] == 1).all()]
+        fig = plt.figure(figsize=(9, 15))
+        gs1 = gridspec.GridSpec(3, 1)
+        # Create subplot showing multipliers on tau, on a log scale.
+        ax_components = fig.add_subplot(gs1[2])
+        ax_components.axhline(color='k', ls='dotted')
+        legend_handles = []
+        palette = hls_palette(len(components_to_plot), l=.5, s=0.8)
+        position = df['y']
+        for i, component in enumerate(components_to_plot):
+            response = df[component]
+            handle = ax_components.plot(position, response, color=palette[i], label=component)
+            legend_handles.append(handle[0])
+        ax_components.legend(handles=legend_handles, loc='upper center', bbox_to_anchor=(0.5, -0.15),
+                             ncol=4, fancybox=True, shadow=True)
+        ax_components.set_title("{0}: Perc. var. effects for {1}".format(self.label, pt.get_name()))
+        ax_components.set_xlabel("Y-coordinate (in m, from upstream to downstream)")
+        ax_components.set_ylabel("Multiplier on perceptual variance (0 = no effect)")
+        ax_components.invert_xaxis()  # upstream to the left, downstream to the right
+        gs1.tight_layout(fig, rect=[0, 0.1, 1, 1])
+        # Create subplot showing value of perceptual variance itself
+        ax_pv = fig.add_subplot(gs1[1])
+        response = [self.cforager.perceptual_variance(self.cforager.time_at_y(y_coord, x, z, pt), x, z, pt) for y_coord
+                    in df['y']]
+        ax_pv.plot(position, response, color=(0, 0, 0))
+        ax_pv.grid()
+        ax_pv.set_title("{0}: Perc. var. for {1} at (x,z)=({2:.2f}, {3:.2f})".format(self.label, pt.get_name(), x, z))
+        ax_pv.set_xlabel("Y-coordinate (in m, from upstream to downstream)")
+        ax_pv.set_ylabel("Perceptual variance")
+        ax_pv.invert_xaxis()  # upstream to the left, downstream to the right
+        gs1.tight_layout(fig, rect=[0, 0.05, 1, 1])
+        # Plot the corresponding discrimination probabilities
+        ax_prob = fig.add_subplot(gs1[0])
+        probabilities = [
+            self.cforager.discrimination_probabilities(self.cforager.time_at_y(y_coord, x, z, pt), x, z, pt) for y_coord
+            in df['y']]
+        response_fp = [item[0] for item in probabilities]
+        response_th = [item[1] for item in probabilities]
+        prob_fp = ax_prob.plot(position, response_fp, color=(0.6, 0, 0), label='False Positive')
+        prob_th = ax_prob.plot(position, response_th, color=(0, 0.6, 0), label='True Hit')
+        ax_prob.grid()
+        ax_prob.set_title(
+            "{0}: Disc. probs. for {1} at (x,z)=({2:.2f}, {3:.2f})".format(self.label, pt.get_name(), x, z))
+        ax_prob.set_xlabel("Y-coordinate (in m, from upstream to downstream)")
+        ax_prob.set_ylabel("Discrimination probability")
+        ax_prob.legend(handles=[prob_fp[0], prob_th[0]], loc='upper center', bbox_to_anchor=(0.5, 0.12),
+                       ncol=2, fancybox=True, shadow=True)
+        ax_prob.invert_xaxis()  # upstream to the left, downstream to the right
+        ax_prob.set_ylim(0, 1)
+        gs1.tight_layout(fig, rect=[0, 0.05, 1, 1])
+        # Show the plot
+        plt.show()
+
+    def plot_detection_model(self, **kwargs):
         # Plot the relative size of each component of tau
         pt = kwargs.get('pt', self.cforager.get_favorite_prey_type())
         x = kwargs.get('x', 0.5 * pt.get_max_visible_distance())
@@ -290,25 +350,63 @@ class InspectableFish(ftf.FieldTestFish):
         df.set_index('t')
         components_to_plot = [item for item in components_list[0].keys() if item not in
                               ['t', 'y', 'flicker_frequency'] and not (df[item] == 1).all()]
-        fig = plt.figure(figsize=(9, 6))
-        gs1 = gridspec.GridSpec(1, 1)
-        ax = fig.add_subplot(gs1[0])
-        ax.axhline(color='k', ls='dotted')
+        fig = plt.figure(figsize=(18, 12))
+        gs1 = gridspec.GridSpec(2, 2)
+        # Create subplot showing multipliers on tau, on a log scale.
+        ax_components = fig.add_subplot(gs1[3])
+        ax_components.axhline(color='k', ls='dotted')
         legend_handles = []
         palette = hls_palette(len(components_to_plot), l=.5, s=0.8)
-        x = df['y']
+        position = df['y']
         for i, component in enumerate(components_to_plot):
-            y = np.log10(df[component])
-            handle = ax.plot(x, y, color=palette[i], label=component)
+            response = np.log10(df[component])
+            handle = ax_components.plot(position, response, color=palette[i], label=component)
             legend_handles.append(handle[0])
-        # ax.legend(handles=legend_handles, loc=4)
-        ax.legend(handles=legend_handles, loc='upper center', bbox_to_anchor=(0.5, -0.1),
-                  ncol=4, fancybox=True, shadow=True)
-        ax.set_title("{0}: Tau effects for {1}".format(self.label, pt.get_name()))
-        ax.set_xlabel("Y-coordinate (in m, from upstream to downstream)")
-        ax.set_ylabel("Log10 multiplier on tau (0 = no effect)")
-        ax.invert_xaxis()  # upstream to the left, downstream to the right
-        gs1.tight_layout(fig, rect=[0, 0.1, 1, 1])
+        ax_components.legend(handles=legend_handles, loc='upper center', bbox_to_anchor=(0.5, -0.15),
+                             ncol=4, fancybox=True, shadow=True)
+        ax_components.set_title("{0}: Tau effects for {1}".format(self.label, pt.get_name()))
+        ax_components.set_xlabel("Y-coordinate (in m, from upstream to downstream)")
+        ax_components.set_ylabel("Multiplier on tau (1 = no effect)")
+        ax_components.invert_xaxis()  # upstream to the left, downstream to the right
+        # Create subplot showing value of tau itself
+        ax_tau = fig.add_subplot(gs1[1])
+        response = [self.cforager.tau(self.cforager.time_at_y(y_coord, x, z, pt), x, z, pt) for y_coord in df['y']]
+        #    response = [self.cforager.mean_value_function(self.cforager.time_at_y(y_coord, x, z, pt), x, z, pt) for y_coord in df['y']]
+        print("Detection probability is ", self.cforager.detection_probability(x, z, pt))
+        print("Detection CDF at T ", self.cforager.detection_cdf_at_t(T, x, z, pt))
+
+        ax_tau.semilogy(position, response, color=(0, 0, 0))
+        ax_tau.grid()
+        ax_tau.set_title("{0}: Tau for {1} at (x,z)=({2:.2f}, {3:.2f})".format(self.label, pt.get_name(), x, z))
+        ax_tau.set_xlabel("Y-coordinate (in m, from upstream to downstream)")
+        ax_tau.set_ylabel("Tau (log-scaled)")
+        ax_tau.invert_xaxis()  # upstream to the left, downstream to the right
+        # Create subplot showing detection PDF
+        ax_pdf = fig.add_subplot(gs1[2])
+        probability = [self.cforager.detection_pdf_at_y(y_coord, x, z, pt) for y_coord in df['y']]
+        upstream_profitable_bound_t, downstream_profitable_bound_t = self.cforager.bounds_of_profitability(x, z, pt)
+        upstream_profitable_bound_y = self.cforager.y_at_time(upstream_profitable_bound_t, x, z, pt)
+        downstream_profitable_bound_y = self.cforager.y_at_time(downstream_profitable_bound_t, x, z, pt)
+        ax_pdf.axvline(x=upstream_profitable_bound_y, linestyle='dotted', color='g', alpha=1.0)
+        ax_pdf.axvline(x=downstream_profitable_bound_y, linestyle='dotted', color='g', alpha=1.0)
+        ax_pdf.plot(position, probability, color=(0, 0, 0.6))
+        ax_pdf.grid()
+        ax_pdf.set_title("{0}: Det. PDF for {1} at (x,z)=({2:.2f}, {3:.2f})".format(self.label, pt.get_name(), x, z))
+        ax_pdf.set_xlabel("Y-coordinate (in m, from upstream to downstream)")
+        ax_pdf.set_ylabel("Detection PDF")
+        ax_pdf.invert_xaxis()  # upstream to the left, downstream to the right
+        # Create subplot showing detection CDF
+        ax_cdf = fig.add_subplot(gs1[0])
+        probability = [self.cforager.detection_cdf_at_y(y_coord, x, z, pt) for y_coord in df['y']]
+        ax_cdf.plot(position, probability, color=(0, 0, 0))
+        ax_cdf.grid()
+        ax_cdf.set_title("{0}: Det. CDF for {1} at (x,z)=({2:.2f}, {3:.2f})".format(self.label, pt.get_name(), x, z))
+        ax_cdf.set_xlabel("Y-coordinate (in m, from upstream to downstream)")
+        ax_cdf.set_ylabel("Detection CDF")
+        ax_cdf.invert_xaxis()  # upstream to the left, downstream to the right
+        ax_cdf.set_ylim(0, 1)
+        # Show the plot
+        gs1.tight_layout(fig, rect=[0, 0.05, 1, 1])
         plt.show()
 
     def plot_tau_by_class(self, x, z):

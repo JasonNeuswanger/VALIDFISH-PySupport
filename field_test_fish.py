@@ -113,21 +113,20 @@ class FieldTestFish:
             )
         self.cforager.process_prey_type_changes()
 
+        self.parameter_names = ['delta_0', 'alpha_tau', 'alpha_d', 'beta',
+                                'A_0', 'flicker_frequency', 'tau_0', 'nu_0',
+                                'discriminability', 'delta_p', 'omega_p', 'ti_p', 'sigma_p_0']
+
         self.parameter_bounds = {
-            'delta_0': self.cforager.get_parameter_bounds(vf.Forager.Parameter.delta_0),
-            'alpha_tau': self.cforager.get_parameter_bounds(vf.Forager.Parameter.alpha_tau),
-            'alpha_d': self.cforager.get_parameter_bounds(vf.Forager.Parameter.alpha_d),
-            'beta': self.cforager.get_parameter_bounds(vf.Forager.Parameter.beta),
-            'A_0': self.cforager.get_parameter_bounds(vf.Forager.Parameter.A_0),
-            'flicker_frequency': self.cforager.get_parameter_bounds(vf.Forager.Parameter.flicker_frequency),
-            'tau_0': self.cforager.get_parameter_bounds(vf.Forager.Parameter.tau_0),
-            'nu_0': self.cforager.get_parameter_bounds(vf.Forager.Parameter.nu_0),
-            'discriminability': self.cforager.get_parameter_bounds(vf.Forager.Parameter.discriminability),
-            'delta_p': self.cforager.get_parameter_bounds(vf.Forager.Parameter.delta_p),
-            'omega_p': self.cforager.get_parameter_bounds(vf.Forager.Parameter.omega_p),
-            'ti_p': self.cforager.get_parameter_bounds(vf.Forager.Parameter.ti_p),
-            'sigma_p_0': self.cforager.get_parameter_bounds(vf.Forager.Parameter.sigma_p_0)
+            name: self.cforager.get_parameter_bounds(self.cforager.get_parameter_named(name))
+            for name in self.parameter_names
         }
+
+        self.scaled_parameter_bounds = {name: ((np.log10(bounds[0]), np.log10(bounds[1]))
+                                              if self.cforager.is_parameter_log_scaled(self.cforager.get_parameter_named(name))
+                                              else bounds)
+                                        for name, bounds in self.parameter_bounds.items()}
+
 
     def foraging_point_distribution_distance(self, verbose=True, plot=False):
         # First, we split the a cubic foraging region encompassing the max radius into many (gridsize^3)

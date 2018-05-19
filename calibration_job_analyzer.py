@@ -12,7 +12,7 @@ from job_runner import JobRunner
 export_plots = True
 show_plots = False
 
-job_name = 'FifthFifteen'
+job_name = 'Fifteen2'
 #job_name = 'ThirdFiveDollies'
 
 runner = JobRunner(job_name, readonly=True)
@@ -57,40 +57,7 @@ param_names = [item['name'] for item in runner.domain]
 df = pd.DataFrame(data=X_all, index=np.arange(0, len(X_all)), columns=param_names)  # 1st row as the column names
 df['value'] = Y_all
 df = df[abs(df['value']) < 1000000]
-
-def color_for_value(value):
-    def scale(x):
-        return x  # identity for now, or use np.log
-    vmin = scale(min(df['value']))
-    vmax = scale(max(df['value']))
-    proportion = scale((value - vmin) / (vmax - vmin))
-    return cm.viridis_r(proportion)
-colors = [color_for_value(value) for value in df['value']]
-
-# Plot all explored values of each two-parameter combination together, explored points
-# color-coded by the objective function value (yellow=best, blue=worst) at that point.
-for i in range(len(param_names)):
-    x_param = param_names[i]
-    for j in range(i):
-        y_param = param_names[j]
-        print("Doing plot for {0} vs {1}.".format(x_param, y_param))
-        g = jointplot(x=x_param, y=y_param, data=df, kind="kde", color="k", alpha=0.4)
-        best_value = Y_all.min()
-        marker_sizes = [(600 if item == best_value else 30) for item in df['value']]
-        g.plot_joint(plt.scatter, c=colors, s=marker_sizes, linewidth=1, marker='+')
-        g.ax_joint.collections[0].set_alpha(0)
-        g.set_axis_labels(x_param, y_param)
-        plt.xlim(*runner.scaled_parameter_bounds[x_param])
-        plt.ylim(*runner.scaled_parameter_bounds[y_param])
-        if export_plots: plt.savefig(os.path.join(figure_folder, "Joint_{0}_{1}.pdf".format(x_param, y_param)))
-        if show_plots: plt.show()
-
-# Plot distributions of individual parameter values tested
-for param in param_names:
-    print("Doing single plot for {0}.".format(param))
-    g = lmplot(x=param, y='value', data=df, lowess=True, ci=None, scatter_kws={"s": 80})
-    if export_plots: plt.savefig(os.path.join(figure_folder, "Single_{0}.pdf".format(param)))
-    if show_plots: plt.show()
+cf = runner.fishes[0].cforager
 
 # Plot parameter and objective function values over time
 
@@ -111,7 +78,13 @@ ax1.set_xlabel('Evaluations')
 legend_handles = []
 palette = hls_palette(len(X_all[0]), l=.4, s=.8)
 for i, param_data in enumerate(X_all.T):
-    handle = ax2.plot(param_data, color=palette[i], label=param_names[i])
+    parameter_name = param_names[i]
+    p = cf.get_parameter_named(parameter_name)
+    def scaled_value(value):
+        plotval = 10**value if cf.is_parameter_log_scaled(p) else value
+        return cf.transform_parameter_value_as_proportion(p, plotval)
+    vscale = np.vectorize(scaled_value)
+    handle = ax2.plot(vscale(param_data), color=palette[i], label=param_names[i])
     legend_handles.append(handle[0])
 ax2.legend(handles=legend_handles, loc=2)
 ax2.set_ylabel('Parameter value (or log10)')
@@ -120,7 +93,13 @@ ax2.set_xlabel('Evaluations')
 legend_handles = []
 palette = hls_palette(len(X_best[0]), l=.4, s=.8)
 for i, param_data in enumerate(X_best.T):
-    handle = ax3.plot(param_data, color=palette[i], label=param_names[i])
+    parameter_name = param_names[i]
+    p = cf.get_parameter_named(parameter_name)
+    def scaled_value(value):
+        plotval = 10 ** value if cf.is_parameter_log_scaled(p) else value
+        return cf.transform_parameter_value_as_proportion(p, plotval)
+    vscale = np.vectorize(scaled_value)
+    handle = ax3.plot(vscale(param_data), color=palette[i], label=param_names[i])
     legend_handles.append(handle[0])
 ax3.legend(handles=legend_handles, loc=2)
 ax3.set_ylabel('Parameter value (or log10)')
@@ -133,11 +112,61 @@ ax4.set_xlabel('Evaluations')
 fig.suptitle("Convergence for {0}".format(job_name))
 gs1.tight_layout(fig, rect=[0, 0, 1, 0.97])
 # Save
-if export_plots: plt.savefig(os.path.join(figure_folder, "Convergence.pdf".format(param)))
+if export_plots: plt.savefig(os.path.join(figure_folder, "Convergence.pdf"))
 plt.show()
 
+def color_for_value(value):
+    def scale(x):
+        return x  # identity for now, or use np.log
+    vmin = min(df['value'])
+    vmax = max(df['value'])
+    proportion = scale((value - vmin) / (vmax - vmin))
+    return cm.viridis_r(proportion)
+colors = [color_for_value(value) for value in df['value']]
 
+# Plot all explored values of each two-parameter combination together, explored points
+# color-coded by the objective function value (yellow=best, blue=worst) at that point.
 
+show_plots = False
+for i in range(len(param_names)):
+    x_param = param_names[i]
+    for j in range(i):
+        y_param = param_names[j]
+        print("Doing plot for {0} vs {1}.".format(x_param, y_param))
+        g = jointplot(x=x_param, y=y_param, data=df, kind="kde", color="k", alpha=0.4)
+        best_value_index = Y_all.argmin()
+        best_x_param_value = df[x_param][best_value_index]
+        best_y_param_value = df[y_param][best_value_index]
+        x_param_enum = cf.get_parameter_named(x_param)
+        x_label = "log10({0})".format(x_param) if cf.is_parameter_log_scaled(x_param_enum) else x_param
+        y_param_enum = cf.get_parameter_named(y_param)
+        y_label = "log10({0})".format(y_param) if cf.is_parameter_log_scaled(y_param_enum) else y_param
+        g.plot_joint(plt.scatter, c=colors, s=30, linewidth=1, marker='+')
+        g.ax_joint.collections[0].set_alpha(0)
+        g.set_axis_labels(x_label, y_label)
+        g.ax_joint.plot([best_x_param_value], [best_y_param_value], c=(1, 0, 0), markersize=10, marker='o')
+        plt.xlim(*runner.scaled_parameter_bounds[x_param])
+        plt.ylim(*runner.scaled_parameter_bounds[y_param])
+        if export_plots: plt.savefig(os.path.join(figure_folder, "Joint_{0}_{1}.pdf".format(x_param, y_param)))
+        if show_plots: plt.show()
+
+# Plot distributions of individual parameter values tested
+
+for param in param_names:
+    print("Doing single plot for {0}.".format(param))
+    g = lmplot(x=param, y='value', data=df, lowess=True, ci=None, scatter_kws={"s": 80})
+    best_value_index = Y_all.argmin()
+    best_param_value = df[param][best_value_index]
+    x_param_enum = cf.get_parameter_named(param)
+    g.axes[0,0].axvline(best_param_value, color=(1, 0, 0))
+    x_label = "log10({0})".format(param) if cf.is_parameter_log_scaled(x_param_enum) else param
+    g.set_axis_labels(x_label, 'objective function value')
+    if export_plots: plt.savefig(os.path.join(figure_folder, "Single_{0}.pdf".format(param)))
+    if show_plots: plt.show()
+
+# todo I should try to set parameters so that values on the low end of the range correspond
+# todo to small/no effect, and values on the high end of the range a large effect. Just
+# todo use 1/const others.
 
 # --------------------------------------------------------------------------------------------------------
 # NEW PLOT FOR DIET
@@ -215,8 +244,23 @@ for fish in runner.fishes:
 
 # Grayling 14, dolly 8,
 
+
+from pandas import DataFrame
 test_fish = runner.fishes[0]
-fig3d = test_fish.plot_predicted_detection_field(colorMax=None, bgcolor=(0, 0, 0))
+
+test_fish.evaluate_fit()
+fig3d = test_fish.plot_predicted_detection_field(colorMax=None, gridsize=80j, bgcolor=(0, 0, 0))
+
+test_fish.foraging_point_distribution_distance(verbose=False, plot=True)
+test_fish.plot_variable_reports()
+
+
+
+
+
+plot_detection_model(test_fish, x=0.05, z=0.05)
+
+# make probability response plots scale to (0,1)
 
 
 test_fish.cforager.analyze_results() # required for calculating diet proportion
@@ -266,7 +310,6 @@ print("Total of predicted diet is {0:.6f}".format(np.array(predicted_diet).sum()
 #
 
 
-test_fish.foraging_point_distribution_distance(verbose=False, plot=True)
 
 test_fish.evaluate_fit()
 
