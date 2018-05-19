@@ -245,5 +245,7 @@ class JobRunner:
             self.cursor.execute("UPDATE job_runners SET current_task=\"Running Job {1}\" WHERE id={0}".format(self.runner_id, job_data['id']))
             param_values = [job_data[param] for param in self.parameters_to_optimize]
             obj_value = self.objective_function(job_data['id'], *param_values)
-            self.cursor.execute("UPDATE job_results SET completed_time=NOW(), objective_value={1}, progress=1.0 WHERE id={0}".format(job_data['id'], obj_value))
+            fquery = "UPDATE job_results SET completed_time=NOW(), objective_value={1}, progress=1.0 WHERE id={0}".format(job_data['id'], obj_value)
+            print(fquery)
+            self.cursor.execute(fquery)
             self.cursor.execute("UPDATE job_descriptions SET iterations_completed=(SELECT COUNT(*) FROM job_results WHERE job_name=\"{0}\" AND objective_value IS NOT NULL) WHERE job_name=\"{0}\"".format(self.job_name))
