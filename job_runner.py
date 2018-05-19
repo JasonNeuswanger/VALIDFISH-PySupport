@@ -111,11 +111,13 @@ class JobRunner:
         assert(len(argnames) == len(args))  # make sure function was called with exact # of arguments to map onto current domain
         def scale(argname, argvalue):
             p = self.fishes[0].cforager.get_parameter_named(argname)
-            return self.fishes[0].cforager.transform_parameter_value(p, argvalue)
+            scaled_value = self.fishes[0].cforager.reverse_transform_parameter_value(p, argvalue)
+            print("Scaled argument {0} from {1} to {2}.".format(argname, argvalue, scaled_value))
+            return scaled_value
         scaled_values = [scale(name, value) for name, value in zip(argnames, args)]
         for key, value in self.fixed_parameters.items():
             argnames.append(key)
-            scaled_values.append(value)
+            scaled_values.append(scale(key, value))
         d = dict(zip(argnames, scaled_values))
         ordered_params = [d[key] for key in self.all_parameters]
         objective = 0
@@ -135,7 +137,7 @@ class JobRunner:
         argnames = [item['name'] for item in self.domain]
         def scale(argname, argvalue):
             p = self.fishes[0].cforager.get_parameter_named(argname)
-            return self.fishes[0].cforager.transform_parameter_value(p, argvalue)
+            return self.fishes[0].cforager.reverse_transform_parameter_value(p, argvalue)
         scaled_values = [scale(name, value) for name, value in zip(argnames, args)]
         for key, value in self.fixed_parameters.items():
             argnames.append(key)
@@ -150,7 +152,7 @@ class JobRunner:
         for i, value in enumerate(X):
             name = self.domain[i]['name']
             p = self.fishes[0].cforager.get_parameter_named(name)
-            printed_value = self.fishes[0].cforager.transform_parameter_value(p, value)
+            printed_value = self.fishes[0].cforager.reverse_transform_parameter_value(p, value)
             if value < 0.001 or value > 1000:
                 pieces.append("{0}={1:.3e}".format(name, printed_value))
             else:

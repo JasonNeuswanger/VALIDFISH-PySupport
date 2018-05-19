@@ -255,7 +255,7 @@ test_fish.foraging_point_distribution_distance(verbose=False, plot=True)
 test_fish.plot_variable_reports()
 
 
-
+runner.fishes[0].plot_detection_model()
 
 
 plot_detection_model(test_fish, x=0.05, z=0.05)

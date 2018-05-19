@@ -371,10 +371,6 @@ class InspectableFish(ftf.FieldTestFish):
         # Create subplot showing value of tau itself
         ax_tau = fig.add_subplot(gs1[1])
         response = [self.cforager.tau(self.cforager.time_at_y(y_coord, x, z, pt), x, z, pt) for y_coord in df['y']]
-        #    response = [self.cforager.mean_value_function(self.cforager.time_at_y(y_coord, x, z, pt), x, z, pt) for y_coord in df['y']]
-        print("Detection probability is ", self.cforager.detection_probability(x, z, pt))
-        print("Detection CDF at T ", self.cforager.detection_cdf_at_t(T, x, z, pt))
-
         ax_tau.semilogy(position, response, color=(0, 0, 0))
         ax_tau.grid()
         ax_tau.set_title("{0}: Tau for {1} at (x,z)=({2:.2f}, {3:.2f})".format(self.label, pt.get_name(), x, z))
