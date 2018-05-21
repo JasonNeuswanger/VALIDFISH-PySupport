@@ -134,6 +134,7 @@ class FieldTestFish:
         # to have not just very few but zero pursuits (generally outside the search volume) are then
         # excluded from the analysis. All of these values are flattened into a list of predicted relative
         # pursuit densities throughout the foraging volume.
+        # todo Try comparing these only against captures, or non-surface captures
         gridsize = 50j
         def func(x, y, z):
             return self.cforager.relative_pursuits_by_position(x, y, z)

@@ -38,8 +38,8 @@ class JobRunner:
             self.cursor = self.db.cursor()
 
         if not readonly:
-            self.cursor.execute("INSERT INTO job_runners (current_job_name, machine_name, current_task, cores_per_node) VALUES (\"{0}\", \"{1}\", \"{2}\", {3})".format(initial_job_name, self.machine_name, "Awaiting Job Assignment", self.cores_per_node))
-            self.cursor.execute("SELECT LAST_INSERT_ID()")
+            self.safe_query("INSERT INTO job_runners (current_job_name, machine_name, current_task, cores_per_node) VALUES (\"{0}\", \"{1}\", \"{2}\", {3})".format(initial_job_name, self.machine_name, "Awaiting Job Assignment", self.cores_per_node))
+            self.safe_query("SELECT LAST_INSERT_ID()")
             self.runner_id = self.cursor.fetchone()['LAST_INSERT_ID()']
         else:
             self.runner_id = -1
@@ -57,9 +57,17 @@ class JobRunner:
             else:
                 return self.job_properties[job_property] != self.previous_job_properties[job_property]
 
+    def safe_query(self, query):
+        try:
+            self.cursor.execute(query)
+        except Exception as e:
+            print("Exception in MySQL during query:\n\n{0}\n\nException was:\n\n{1}\n\nSleeping 30 seconds and retrying.".format(query, repr(e)))
+            sleep(30)
+            self.safe_query(query)
+
     def load_job_properties(self):
         if self.readonly:
-            self.cursor.execute("SELECT * FROM job_descriptions WHERE job_name=\"{0}\"".format(self.job_name))
+            self.safe_query("SELECT * FROM job_descriptions WHERE job_name=\"{0}\"".format(self.job_name))
             self.job_properties = self.cursor.fetchone()
             self.fish_labels, self.fish_species = self.fish_groups[self.job_properties['fish_group']]
             self.fishes = [FishConstructor(fish_label) for fish_label in self.fish_labels]
@@ -67,17 +75,17 @@ class JobRunner:
             self.opt_cores = self.cores_per_node - 2  # grey wolf algorithm pack size
             self.opt_iters = self.job_properties['grey_wolf_iterations']
         else:
-            self.cursor.execute("SELECT * FROM job_runners WHERE id={0}".format(self.runner_id))
+            self.safe_query("SELECT * FROM job_runners WHERE id={0}".format(self.runner_id))
             self.runner_properties = self.cursor.fetchone()
             self.job_name = self.runner_properties['current_job_name']
             if self.runner_properties['stopped']:
                 quit("Job runner {0} was manually stopped on machine {1}.".format(self.runner_id, self.machine_name))
-            self.cursor.execute("SELECT * FROM job_descriptions WHERE job_name=\"{0}\"".format(self.job_name))
+            self.safe_query("SELECT * FROM job_descriptions WHERE job_name=\"{0}\"".format(self.job_name))
             self.job_properties = self.cursor.fetchone()
             if self.job_properties is None:
                 quit("ERROR: No job description found with name {0}.".format(self.job_name))
             if self.job_properties['iterations_completed'] >= self.job_properties['max_iterations']:
-                self.cursor.execute("UPDATE job_runners SET current_task=\"Completed (Max Iterations Reached)\", stopped=1 WHERE id={0}".format(self.runner_id))
+                self.safe_query("UPDATE job_runners SET current_task=\"Completed (Max Iterations Reached)\", stopped=1 WHERE id={0}".format(self.runner_id))
                 quit("quiting script : reached max number of iterations.")
             self.opt_cores = self.cores_per_node - 2  # grey wolf algorithm pack size
             self.opt_iters = self.job_properties['grey_wolf_iterations']
@@ -130,7 +138,7 @@ class JobRunner:
                 return np.nan
             else:
                 objective += fit_value
-            self.cursor.execute("UPDATE job_results SET progress={1:.2f} WHERE id={0}".format(job_id, (i+1)/len(self.fishes)))
+            self.safe_query("UPDATE job_results SET progress={1:.2f} WHERE id={0}".format(job_id, (i+1)/len(self.fishes)))
         return objective
 
     def optimize_forager_with_parameters(self, forager, *args):
@@ -193,16 +201,16 @@ class JobRunner:
 
     def create_initial_jobs(self):
         print("\nCreating initial jobs.\n")
-        self.cursor.execute("UPDATE job_runners SET current_task=\"Creating Initial Jobs\" WHERE id={0}".format(self.runner_id))
+        self.safe_query("UPDATE job_runners SET current_task=\"Creating Initial Jobs\" WHERE id={0}".format(self.runner_id))
         space = gpo.Design_space(self.domain)
         X_init = initial_design('sobol', space, self.job_properties['initial_iterations'])
         for X in X_init:
-            self.cursor.execute(self.insert_query_from_X(X, True))
+            self.safe_query(self.insert_query_from_X(X, True))
 
     def create_iterated_jobs(self):
         print("\nCreating {0} new jobs.\n".format(self.job_properties['batch_size']))
-        self.cursor.execute("UPDATE job_runners SET current_task=\"Creating New Jobs\" WHERE id={0}".format(self.runner_id))
-        self.cursor.execute("SELECT * FROM job_results WHERE objective_value IS NOT NULL AND job_name=\"{0}\"".format(self.job_name))
+        self.safe_query("UPDATE job_runners SET current_task=\"Creating New Jobs\" WHERE id={0}".format(self.runner_id))
+        self.safe_query("SELECT * FROM job_results WHERE objective_value IS NOT NULL AND job_name=\"{0}\"".format(self.job_name))
         completed_job_data = self.cursor.fetchall()
         if len(completed_job_data) >= self.job_properties['max_iterations']:
             print("There are {0} completed iterations out of a maximum {1} requested -- ceasing new job creation.".format(len(completed_job_data), self.job_properties['max_iterations']))
@@ -225,29 +233,29 @@ class JobRunner:
                                               acquisition_jitter=self.job_properties['acquisition_jitter'])
         X_next = bo.suggest_next_locations()
         for X in X_next:
-            self.cursor.execute(self.insert_query_from_X(X, False))
+            self.safe_query(self.insert_query_from_X(X, False))
 
     def run_jobs(self):
         while True:
             self.load_job_properties()
-            self.cursor.execute("SELECT id FROM job_results WHERE job_name=\"{0}\" LIMIT 1".format(self.job_name))
+            self.safe_query("SELECT id FROM job_results WHERE job_name=\"{0}\" LIMIT 1".format(self.job_name))
             if self.cursor.fetchone() is None:
                 self.create_initial_jobs()
             job_data = None
             while job_data is None:
-                self.cursor.execute("SELECT * FROM job_results WHERE start_time IS NULL AND job_name=\"{0}\" LIMIT 1".format(self.job_name))
+                self.safe_query("SELECT * FROM job_results WHERE start_time IS NULL AND job_name=\"{0}\" LIMIT 1".format(self.job_name))
                 job_data = self.cursor.fetchone()
                 if job_data is None:
-                    self.cursor.execute("SELECT * FROM job_runners WHERE current_task=\"Creating New Jobs\"")
+                    self.safe_query("SELECT * FROM job_runners WHERE current_task=\"Creating New Jobs\"")
                     if self.cursor.fetchone() is None:
                         self.create_iterated_jobs()
                     else:
                         sleep(15)
-            self.cursor.execute("UPDATE job_results SET start_time=NOW() WHERE id={0}".format(job_data['id']))
-            self.cursor.execute("UPDATE job_runners SET current_task=\"Running Job {1}\" WHERE id={0}".format(self.runner_id, job_data['id']))
+            self.safe_query("UPDATE job_results SET start_time=NOW() WHERE id={0}".format(job_data['id']))
+            self.safe_query("UPDATE job_runners SET current_task=\"Running Job {1}\" WHERE id={0}".format(self.runner_id, job_data['id']))
             param_values = [job_data[param] for param in self.parameters_to_optimize]
             obj_value = self.objective_function(job_data['id'], *param_values)
             fquery = "UPDATE job_results SET completed_time=NOW(), objective_value={1}, progress=1.0 WHERE id={0}".format(job_data['id'], obj_value)
             print(fquery)
-            self.cursor.execute(fquery)
-            self.cursor.execute("UPDATE job_descriptions SET iterations_completed=(SELECT COUNT(*) FROM job_results WHERE job_name=\"{0}\" AND objective_value IS NOT NULL) WHERE job_name=\"{0}\"".format(self.job_name))
+            self.safe_query(fquery)
+            self.safe_query("UPDATE job_descriptions SET iterations_completed=(SELECT COUNT(*) FROM job_results WHERE job_name=\"{0}\" AND objective_value IS NOT NULL) WHERE job_name=\"{0}\"".format(self.job_name))

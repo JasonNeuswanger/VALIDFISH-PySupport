@@ -62,15 +62,16 @@ class InspectableFish(ftf.FieldTestFish):
 
             return scipy.optimize.minimize(objfn, [1], method='L-BFGS-B', bounds=[(min(predictions), max(predictions))]).x[0]
 
-        def my_otf_value(v):
+        def my_otf_value(v, exponent):
             return (v / 4) ** 1.8
 
         flat_s = s.flatten()
         nonzero_s = flat_s[flat_s > 0]
         otf = PiecewiseFunction()
         otf.add_point(0.0, 0.0)
+        otf_exponent = kwargs.get("otf_exponent", 1.8)
         for v in np.linspace(0.05, 1.0, 40):
-            otf_val = my_otf_value(v)
+            otf_val = my_otf_value(v, otf_exponent)
             otf.add_point(rel_pursuits_value_percentile(v), otf_val)
         # otf.add_point(0.0, 0.0)
         # otf.add_point(rel_pursuits_value_percentile(0.05), 0.006)
@@ -84,11 +85,12 @@ class InspectableFish(ftf.FieldTestFish):
         vol._otf = otf
         vol._volume_property.set_scalar_opacity(otf)
 
-        (px, py, pz) = 100 * np.transpose(np.asarray(self.fielddata['detection_positions']))
-        point_radius = 0.005 * self.fork_length_cm
-        d = np.repeat(2 * point_radius, px.size)  # creates an array of point diameters
-        mlab.points3d(py, -px, pz, d, color=kwargs.get('pointcolor', self.color), scale_factor=8, resolution=12,
-                      opacity=1.0, figure=myFig)
+        if kwargs.get('show_fielddata', True):
+            (px, py, pz) = 100 * np.transpose(np.asarray(self.fielddata['detection_positions']))
+            point_radius = 0.005 * self.fork_length_cm
+            d = np.repeat(2 * point_radius, px.size)  # creates an array of point diameters
+            mlab.points3d(py, -px, pz, d, color=kwargs.get('pointcolor', self.color), scale_factor=8, resolution=12,
+                          opacity=1.0, figure=myFig)
 
         if kwargs.get('surfaces', True):
             sx = []
@@ -405,12 +407,29 @@ class InspectableFish(ftf.FieldTestFish):
         gs1.tight_layout(fig, rect=[0, 0.05, 1, 1])
         plt.show()
 
-    def plot_tau_by_class(self, x, z):
+    def plot_tau_by_class(self, **kwargs):
         # using x/z defined by half the max viewing distance for the smallest size class
         # and time bounds defined by the passthrough time for the max sized prey, plot
         # tau for each prey type. but be aware that t=0 for each prey type is different
         # with respect to tau, and maybe offset to account for that?
-        pass
+        size_class_1mm = self.cforager.get_prey_type("1 mm size class")
+        x = kwargs.get("x", size_class_1mm.get_max_visible_distance() * 0.6)
+        z = kwargs.get("z", size_class_1mm.get_max_visible_distance() * 0.6)
+        fig = plt.figure(figsize=(5, 5))
+        ax = plt.axes(figure=fig)
+        for pt in self.cforager.get_prey_types():
+            upstream_bound_t, downstream_bound_t = self.cforager.bounds_of_profitability(x, z, pt)
+            upstream_bound_y = self.cforager.y_at_time(upstream_bound_t, x, z, pt)
+            downstream_bound_y = self.cforager.y_at_time(downstream_bound_t, x, z, pt)
+            plot_x = np.linspace(upstream_bound_y, downstream_bound_y, 100)
+            plot_y = [self.cforager.tau(self.cforager.time_at_y(y_coord, x, z, pt), x, z, pt) for y_coord in plot_x]
+            ax.plot(plot_x, plot_y, label=pt.get_name())
+        ax.set_xlabel("Y-position")
+        ax.set_ylabel("Tau")
+        ax.set_title("{0}: Tau by prey class at (x,z)=({1:.2f}, {2:.2f})".format(self.label, x, z))
+        ax.invert_xaxis()  # upstream to the left, downstream to the right
+        plt.tight_layout()
+        plt.show()
 
     def plot_detection_probability_for_class(self, pc):
         # radial rear-view map of detection probability

@@ -12,8 +12,7 @@ from job_runner import JobRunner
 export_plots = True
 show_plots = False
 
-job_name = 'Fifteen2'
-#job_name = 'ThirdFiveDollies'
+job_name = 'Fifteen1'
 
 runner = JobRunner(job_name, readonly=True)
 figure_folder = os.path.join(os.path.sep, 'Users', 'Jason', 'Desktop', 'TempFig', job_name)
@@ -173,7 +172,6 @@ for param in param_names:
 # --------------------------------------------------------------------------------------------------------
 
 
-
 # --------------------------------------------------------------------------------------------------------
 # SAVE FISH STATES
 # --------------------------------------------------------------------------------------------------------
@@ -201,64 +199,61 @@ for fish in runner.fishes:
     fish.cforager.print_strategy()
 
 # --------------------------------------------------------------------------------------------------------
-# PLOT TAU COMPONENTS FOR ALL FISH
+# PLOT DISCRIMINATION AND DETECTION MODELS FOR ALL FISH
 # --------------------------------------------------------------------------------------------------------
 
 for fish in runner.fishes:
-    fish.plot_tau_components(x=0.03, z=0.03)
-
-# tau components flatlined when i accidentally specified x/y instead of x/z... how?
-# z was automatically chosen as what?
-
-
-# This is an issue with the new formula... difficulty flattens off to an asymptote as
-# distance increases, rather than actually increasing tau it just fails to decrease it.
-# Is this really the behavior I want?
-
-
-
-# This shows results closer to Mathematica.... so what's up with the plot?
-# It's log10, but still, why showing near zilch?
-# loom effect should be around -0.11 on log10 scale
-# angular are effect around -0.03
-# both very different from 0 on the scale above....
-
-
-# how is the spatial attention component flat for so many of these?
-
+    fish.plot_discrimination_model(x=0.03, z=0.03)
+    fish.plot_detection_model(x=0.03, z=0.03)
 
 # --------------------------------------------------------------------------------------------------------
 # PLOT/ANALYZE INDIVIDUAL FISH FITS
 # --------------------------------------------------------------------------------------------------------
 
-# Got pretty good spatial fits with:
-# array([-3.34765814,  2.00834274,  0.63941595, -0.37718821,  2.10395955,
-#         0.59651847, -3.46588322])
+# fishes[1] has a really sweet fit plot
+# we still haven't got the mechanism by which fish 2 and 9 feed more forward than others
+# grayling 10, 12, 13, are fubar
 
-# First,
-# Then, find a way to do a summary of other fit stats on the detection field plot.
-# Graphical?
+# velocities for the big fish are still all messed up
+# question now is: can the model get grayling right if it only focuses on them?
 
-# We haven't really got the reasons why the Chinook with index 2 should have such a long
-# detection field. Also how does its velocity match?
+# i wonder if it makes more sense to calculate parameters with velocity fixed to field values
+# and then see if predicted optimal velocities match observations after fitting the model based
+# solely on the other considerations?
 
-# Grayling 14, dolly 8,
-
-
-from pandas import DataFrame
 test_fish = runner.fishes[0]
-
+test_fish.cforager.print_parameters()
 test_fish.evaluate_fit()
 fig3d = test_fish.plot_predicted_detection_field(colorMax=None, gridsize=80j, bgcolor=(0, 0, 0))
+
+test_fish.plot_detection_model()
+test_fish.plot_discrimination_model()
+test_fish.cforager.print_parameters()
 
 test_fish.foraging_point_distribution_distance(verbose=False, plot=True)
 test_fish.plot_variable_reports()
 
 
-runner.fishes[0].plot_detection_model()
+# TOTAL ENERGY PLOT
 
-
-plot_detection_model(test_fish, x=0.05, z=0.05)
+import seaborn as sns
+numpts = 30
+r = test_fish.cforager.get_max_radius()
+x = np.linspace(-r, r, numpts)
+y = np.linspace(-r, r, numpts)
+xg, yg = np.meshgrid(x, y)
+zg = np.empty(np.shape(xg))
+for i in range(len(x)):
+    for j in range(len(y)):
+        zg[j, i] = test_fish.cforager.depleted_prey_concentration_total_energy(x[i], y[j], 0)
+xgd = np.vstack((xg, xg))
+ygd = np.vstack((-np.flipud(yg), yg))
+zgd = np.vstack((np.flipud(zg), zg))
+sns.set_style('white')
+efig, (ax) = plt.subplots(1, 1, facecolor='w', figsize=(3.25, 2.6), dpi=300)
+cf = ax.contourf(xgd, ygd, zgd, 10, cmap='viridis_r')
+efig.colorbar(cf, ax=ax, shrink=0.9)
+efig.show()
 
 # make probability response plots scale to (0,1)
 
