@@ -21,17 +21,17 @@ if IS_MAC:
     #                '2016-06-10-2 Clearwater - Arctic Grayling (id #1)',
     #                #'2016-08-02-2 Clearwater - Arctic Grayling (id #1)'
     #                ]
-    # fish_labels = ['2015-07-11-1 Chena - Chinook Salmon (id #4)']
-    fish_labels = ['2015-07-11-1 Chena - Chinook Salmon (id #4)',
-                   '2015-07-10-1 Chena - Chinook Salmon (id #4)',
-                   '2015-08-05-2 Chena - Chinook Salmon (id #4)',
-                   '2015-06-16-2 Panguingue - Dolly Varden (id #2)',
-                   '2016-06-17-1 Panguingue - Dolly Varden (id #3)',
-                   '2015-07-17-3 Panguingue - Dolly Varden (id #4)',
-                   '2016-06-10-2 Clearwater - Arctic Grayling (id #1)',
-                   '2015-06-23-2 Clearwater - Arctic Grayling (id #1)',
-                   '2016-08-02-2 Clearwater - Arctic Grayling (id #1)'
-                   ]
+    fish_labels = ['2015-07-11-1 Chena - Chinook Salmon (id #4)']
+    # fish_labels = ['2015-07-11-1 Chena - Chinook Salmon (id #4)',
+    #                '2015-07-10-1 Chena - Chinook Salmon (id #4)',
+    #                '2015-08-05-2 Chena - Chinook Salmon (id #4)',
+    #                '2015-06-16-2 Panguingue - Dolly Varden (id #2)',
+    #                '2016-06-17-1 Panguingue - Dolly Varden (id #3)',
+    #                '2015-07-17-3 Panguingue - Dolly Varden (id #4)',
+    #                '2016-06-10-2 Clearwater - Arctic Grayling (id #1)',
+    #                '2015-06-23-2 Clearwater - Arctic Grayling (id #1)',
+    #                '2016-08-02-2 Clearwater - Arctic Grayling (id #1)'
+    #                ]
     #fish_labels = ['2016-08-02-2 Clearwater - Arctic Grayling (id #1)']
     #fish_labels = ['2016-08-12-1 Chena - Chinook Salmon (id #1)']
     fishes = [inspectable_fish.InspectableFish(fish_label) for fish_label in fish_labels]
@@ -218,15 +218,18 @@ for fish in fishes:
 test_fish = fishes[0]
 optimize_forager_with_parameters(test_fish, *X_best[-1])
 test_fish.save_state()
-test_fish.plot_roc_curves()
 test_fish.cforager.print_strategy()
 test_fish.cforager.print_status()
+
+
+for pt in test_fish.cforager.get_prey_types():
+    test_fish.plot_discrimination_model(pt=pt, x=0.1, z=0.1)
 
 
 # test_fish.cforager.get_strategy(vf.Forager.Strategy.sigma_A)
 # test_fish.cforager.set_strategy(vf.Forager.Strategy.sigma_A, 1.15*np.pi)
 
-for fish in fishes:
+for fish in runner.fishes:
     fish.load_state()
 
 dolly = inspectable_fish.InspectableFish('2015-07-17-3 Panguingue - Dolly Varden (id #4)')
@@ -264,26 +267,15 @@ df.plot()
 plt.show()
 
 
-# Old run for different 6 fish
-# COMPLETED. After 101 evaluations, best Y = 1.5226 at X = delta_0=1.428e-05, beta=1.872e-01, A_0=2.394e-03, t_s_0=1.431, discriminability=5.632, flicker_frequency=10.006, tau_0=5.462, nu=2.412e-03.
-# X = np.array([ -4.84531681,  -0.72769643,  -2.62089764,   0.15565454, 5.63170009,  10.0057271 ,   0.73733045,  -2.61764453])
-# Test fish 1 looks great under these parameter sets... good one for figures.
-# COMPLETED. After 401 evaluations, best Y = 1.2788 at X = delta_0=8.975e-04, beta=1.000e-01, A_0=1.710e-02, t_s_0=8.531e-01, discriminability=3.994, flicker_frequency=58.042, tau_0=5.582e-02, nu=1.000e-02.
-# X = np.array([ -3.04694903,  -1.        ,  -1.76695891,  -0.06899052, 3.99396835,  58.04223186,  -1.25317802,  -2.        ])
-# New run for new fish.
-
-# COMPLETED. After 201 evaluations, best Y = 5.1211 at X = delta_0=5.757e-05, beta=4.814, A_0=3.492e-02, t_s_0=8.554e-01, discriminability=3.237, flicker_frequency=32.107, tau_0=2.495e-02, nu=2.529e-04.
-# X = np.array([ -4.23980078,   0.6825426 ,  -1.45689422,  -0.06781831, 3.23741818,  32.10711545,  -1.60295352,  -3.59700022])
-
-# New cost function
-# COMPLETED. After 31 evaluations, best Y = 8.7423 at X = delta_0=2.371e-06, beta=8.660e-01, A_0=3.398e-01, t_s_0=3.377e-01, discriminability=2.406, flicker_frequency=33.031, tau_0=3.924e-01, nu=3.398e-03.
-
-
-
 test_fish.evaluate_fit(verbose=True)
-
 test_fish.load_state()
 test_fish.plot_variable_reports()
+
+
+test_fish = runner.fishes[12]
+test_fish.load_state()
+test_fish.plot_detection_model()
+
 
 
 gridsize=30j
@@ -299,6 +291,9 @@ nzsf = sf[sf>0]
 fieldvals = []
 for xf, yf, zf in test_fish.fielddata['detection_positions']:
     fieldvals.append(test_fish.cforager.relative_pursuits_by_position(xf, yf, zf))
+
+
+#todo detection prob vs params graphs should scale according to whether params are log or linear selected
 
 
 import numpy as np

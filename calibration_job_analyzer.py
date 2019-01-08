@@ -236,29 +236,30 @@ test_fish.plot_variable_reports()
 
 # TOTAL ENERGY PLOT
 
-import seaborn as sns
-numpts = 30
-r = test_fish.cforager.get_max_radius()
-x = np.linspace(-r, r, numpts)
-y = np.linspace(-r, r, numpts)
-xg, yg = np.meshgrid(x, y)
-zg = np.empty(np.shape(xg))
-for i in range(len(x)):
-    for j in range(len(y)):
-        zg[j, i] = test_fish.cforager.depleted_prey_concentration_total_energy(x[i], y[j], 0)
-xgd = np.vstack((xg, xg))
-ygd = np.vstack((-np.flipud(yg), yg))
-zgd = np.vstack((np.flipud(zg), zg))
-sns.set_style('white')
-efig, (ax) = plt.subplots(1, 1, facecolor='w', figsize=(3.25, 2.6), dpi=300)
-cf = ax.contourf(xgd, ygd, zgd, 10, cmap='viridis_r')
-efig.colorbar(cf, ax=ax, shrink=0.9)
-efig.show()
+# import seaborn as sns
+# numpts = 30
+# r = test_fish.cforager.get_max_radius()
+# x = np.linspace(-r, r, numpts)
+# y = np.linspace(-r, r, numpts)
+# xg, yg = np.meshgrid(x, y)
+# zg = np.empty(np.shape(xg))
+# for i in range(len(x)):
+#     for j in range(len(y)):
+#         zg[j, i] = test_fish.cforager.depleted_prey_concentration_total_energy(x[i], y[j], 0)
+# xgd = np.vstack((xg, xg))
+# ygd = np.vstack((-np.flipud(yg), yg))
+# zgd = np.vstack((np.flipud(zg), zg))
+# sns.set_style('white')
+# efig, (ax) = plt.subplots(1, 1, facecolor='w', figsize=(3.25, 2.6), dpi=300)
+# cf = ax.contourf(xgd, ygd, zgd, 10, cmap='viridis_r')
+# efig.colorbar(cf, ax=ax, shrink=0.9)
+# efig.show()
+#
+# test_fish.cforager.depleted_prey_concentration_total_energy(0.03, -0.4, 0)
 
 # make probability response plots scale to (0,1)
 
-
-test_fish.cforager.analyze_results() # required for calculating diet proportion
+test_fish.cforager.analyze_results()  # required for calculating diet proportion
 observed_diet = []
 predicted_diet = []
 labels = []

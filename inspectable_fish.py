@@ -3,10 +3,12 @@ import Fish3D
 import numpy as np
 import scipy
 import math
+import os
 from pandas import DataFrame
 import matplotlib.pyplot as plt
+from contextlib import redirect_stdout
 from matplotlib import gridspec
-from seaborn import hls_palette
+from seaborn import hls_palette, set_style
 from tvtk.util.ctf import PiecewiseFunction
 import importlib.util
 PYVALIDFISH_FILE = "/Users/Jason/Dropbox/Drift Model Project/Calculations/VALIDFISH/VALIDFISH/cmake-build-release/pyvalidfish.cpython-35m-darwin.so"
@@ -28,10 +30,52 @@ class InspectableFish(ftf.FieldTestFish):
             self.cforager.passage_time: "Time available to detect (s)"
         }
 
-    def plot_predicted_detection_field(self, gridsize=50j, stopButton=False, colorMax=None, **kwargs):
-        def func(x, y, z):
-            return self.cforager.relative_pursuits_by_position(0.01 * x, 0.01 * y, 0.01 * z)
+    def print_description(self):
+        print("             Species: ", self.species)
+        print("               Label: ", self.label)
+        print("         Fork Length: {0:.2f} cm".format(self.fork_length_cm))
+        print("                Mass: {0:.2f} g".format(self.cforager.get_mass_g()))
+        print("         Temperature: {0:.2f} C".format(self.fielddata['temperature_C']))
+        print("Mean Column Velocity: {0:.2f} m/s".format(self.fielddata['focal_velocity_m_per_s']))
 
+    def export_full_analysis(self, **kwargs):
+        base_folder = kwargs.get('base_folder', "~/Desktop")
+        job_name = kwargs.get('job_name', "No Job")
+        fish_folder = os.path.join(base_folder, job_name, self.species, self.label)
+        print("Exporting results for {0} to {1}.".format(self.label, fish_folder))
+        if not os.path.exists(fish_folder): os.makedirs(fish_folder)
+        print("Making text file for strategy, parameters, goodness-of-fit, and analytics.")
+        with open(os.path.join(fish_folder, "{0}.txt".format(self.label)), 'w') as f:
+            with redirect_stdout(f):
+                print("Results for ", self.label)
+                print("\n--------------------------------DESCRIPTION---------------------------------\n")
+                self.print_description()
+                print("\n---------------------------------PREY TYPES---------------------------------\n")
+                print(self.cforager.format_prey_to_print())
+                print("\n------------------------------GOODNESS OF FIT-------------------------------\n")
+                self.evaluate_fit()
+                print("\n---------------------------------STRATEGY-----------------------------------\n")
+                print(self.cforager.format_strategy_to_print())
+                print("\n--------------------------------PARAMETERS----------------------------------\n")
+                print(self.cforager.format_parameters_to_print())
+                print("\n---------------------------------ANALYTICS----------------------------------\n")
+                print(self.cforager.format_analytics_to_print())
+        print("Making discrimination model plots.")
+        self.plot_discrimination_model(show=False, figure_folder=fish_folder)
+        print("Making detection model plots.")
+        self.plot_detection_model(show=False, figure_folder=fish_folder)
+        print("Making rear-view plots of detection probabilities.")
+        self.plot_detection_probabilities_rear_view(show=False, figure_folder=fish_folder)
+        print("Making predicted depletion field top-view plot.")
+        self.plot_predicted_depletion_field_2D(show=False, figure_folder=fish_folder)
+        print("Making detailed variable report plots (takes a while).")
+        self.plot_variable_reports(show=False, figure_folder=fish_folder)
+        print("Finished plots for fish {0}.".format(self.label))
+
+    def plot_3D_field(self, func, **kwargs):
+        gridsize = kwargs.get('gridsize', 50j)
+        stopButton = kwargs.get('stopButton', False)
+        colorMax = kwargs.get('colorMax', None)
         vfunc = np.vectorize(func)
         r = 1.05 * 100 * self.cforager.get_max_radius()
         x, y, z = np.mgrid[-r:r:gridsize, -r:r:gridsize, -r:r:gridsize]
@@ -42,7 +86,8 @@ class InspectableFish(ftf.FieldTestFish):
         mlab.clf(myFig)
         head_position = np.array((0, 0, 0))
         tail_position = np.array((0, -self.fork_length_cm, 0))
-        Fish3D.fish3D(head_position, tail_position, self.species, myFig, color=self.color, world_vertical=np.array([0, 0, 1]))
+        Fish3D.fish3D(head_position, tail_position, self.species, myFig, color=self.color,
+                      world_vertical=np.array([0, 0, 1]))
         vmax = np.max(s) if colorMax is None else colorMax
         vol = mlab.pipeline.volume(mlab.pipeline.scalar_field(x, y, z, s), vmin=0.0, vmax=vmax)
 
@@ -60,30 +105,26 @@ class InspectableFish(ftf.FieldTestFish):
             def objfn(x):
                 return abs(sums_interp(x) - pct)
 
-            return scipy.optimize.minimize(objfn, [1], method='L-BFGS-B', bounds=[(min(predictions), max(predictions))]).x[0]
+            return \
+            scipy.optimize.minimize(objfn, [1], method='L-BFGS-B', bounds=[(min(predictions), max(predictions))]).x[
+                0]
 
-        def my_otf_value(v, exponent):
-            return (v / 4) ** 1.8
+        def my_otf_value(v, exponent, divisor):
+            return (v / divisor) ** exponent
 
         flat_s = s.flatten()
-        nonzero_s = flat_s[flat_s > 0]
         otf = PiecewiseFunction()
         otf.add_point(0.0, 0.0)
         otf_exponent = kwargs.get("otf_exponent", 1.8)
+        otf_divisor = kwargs.get("otf_divisor", 4)
         for v in np.linspace(0.05, 1.0, 40):
-            otf_val = my_otf_value(v, otf_exponent)
+            otf_val = my_otf_value(v, otf_exponent, otf_divisor)
             otf.add_point(rel_pursuits_value_percentile(v), otf_val)
-        # otf.add_point(0.0, 0.0)
-        # otf.add_point(rel_pursuits_value_percentile(0.05), 0.006)
-        # otf.add_point(rel_pursuits_value_percentile(0.15), 0.008)
-        # otf.add_point(rel_pursuits_value_percentile(0.25), 0.013)
-        # otf.add_point(rel_pursuits_value_percentile(0.35), 0.022)
-        # otf.add_point(rel_pursuits_value_percentile(0.50), 0.03)
-        # otf.add_point(rel_pursuits_value_percentile(0.65), 0.04)
-        # otf.add_point(rel_pursuits_value_percentile(0.80), 0.05)
-        # otf.add_point(rel_pursuits_value_percentile(0.90), 0.10)
         vol._otf = otf
         vol._volume_property.set_scalar_opacity(otf)
+
+        if kwargs.get('colorbar', False):
+            mlab.colorbar(vol)
 
         if kwargs.get('show_fielddata', True):
             (px, py, pz) = 100 * np.transpose(np.asarray(self.fielddata['detection_positions']))
@@ -126,6 +167,17 @@ class InspectableFish(ftf.FieldTestFish):
         mlab.show(stop=stopButton)
         return myFig
 
+    def plot_predicted_detection_field_3D(self, **kwargs):
+        def detection_func(x, y, z):
+            return self.cforager.relative_pursuits_by_position(0.01 * x, 0.01 * y, 0.01 * z)
+        return self.plot_3D_field(detection_func, **kwargs)
+
+    def plot_predicted_depletion_field_3D(self, **kwargs):
+        max_drift_energy = self.cforager.depleted_prey_concentration_total_energy(100, 100, 100)
+        def depletion_func(x, y, z):
+            return max_drift_energy - self.cforager.depleted_prey_concentration_total_energy(0.01 * x, 0.01 * y, 0.01 * z)
+        return self.plot_3D_field(depletion_func, **kwargs)
+
     def plot_water_velocity(self):
         bottom_z = self.fielddata['bottom_z_m']
         surface_z = self.fielddata['surface_z_m']
@@ -139,42 +191,44 @@ class InspectableFish(ftf.FieldTestFish):
         plt.tight_layout()
         plt.show()
 
-    def _roc_curve_data(self, pc):
-        perceptual_sigma = pc.get_perceptual_sigma()
-        def normal_cdf(x):
-            return 0.5 * (1 + math.erf(x / math.sqrt(2)))
-        def p_false_positive(disc_thresh):
-            return 1.0 - normal_cdf(disc_thresh / perceptual_sigma)
-        def p_true_hit(disc_thresh):
-            return 1.0 - normal_cdf((disc_thresh - self.cforager.get_parameter(vf.Forager.Parameter.discriminability)) / perceptual_sigma)
-        linsp = np.linspace(-10, 10, 300)
-        logsp = np.logspace(-1, 10, 50)
-        thresholds = np.sort(np.concatenate([np.flip(-logsp, axis=0), logsp, linsp], axis=0))
-        probabilities = [(p_false_positive(thresh), p_true_hit(thresh)) for thresh in thresholds]
-        pfps, pths = zip(*probabilities)  # unzip the list
-        return list(pfps), list(pths)
-
-    def plot_roc_curves(self):
-        fig = plt.figure(figsize=(5, 5))
-        ax = plt.axes()
-        legend_handles = []
-        pcs = self.cforager.get_prey_types()
-        palette = hls_palette(len(pcs), l=.3, s=.8)
-        for i, pc in enumerate(pcs):
-            x, y = self._roc_curve_data(pc)
-            dot_x = pc.get_false_positive_probability()
-            dot_y = pc.get_true_hit_probability()
-            handle = ax.plot(x, y, color=palette[i], label=pc.get_name())
-            legend_handles.append(handle[0])
-            ax.plot([dot_x], [dot_y], marker='o', markersize=5, color=palette[i])
-        ax.legend(handles=legend_handles, loc=4)
-        ax.set_xbound(lower=-0.02, upper=1.02)
-        ax.set_ybound(lower=-0.02, upper=1.02)
-        ax.set_aspect('equal', 'datalim')
-        ax.set_xlabel("False positive probability")
-        ax.set_ylabel("True hit probability")
-        plt.tight_layout()
-        plt.show()
+    # def _roc_curve_data(self, pt):
+    #     perceptual_sigma = pt.get_perceptual_sigma()
+    #     def normal_cdf(x):
+    #         return 0.5 * (1 + math.erf(x / math.sqrt(2)))
+    #     def p_false_positive(disc_thresh):
+    #         return 1.0 - normal_cdf(disc_thresh / perceptual_sigma)
+    #     def p_true_hit(disc_thresh):
+    #         return 1.0 - normal_cdf((disc_thresh - self.cforager.get_parameter(vf.Forager.Parameter.discriminability)) / perceptual_sigma)
+    #     linsp = np.linspace(-10, 10, 300)
+    #     logsp = np.logspace(-1, 10, 50)
+    #     thresholds = np.sort(np.concatenate([np.flip(-logsp, axis=0), logsp, linsp], axis=0))
+    #     probabilities = [(p_false_positive(thresh), p_true_hit(thresh)) for thresh in thresholds]
+    #     pfps, pths = zip(*probabilities)  # unzip the list
+    #     return list(pfps), list(pths)
+    #
+    # def plot_roc_curves(self, **kwargs):
+    #     fig = plt.figure(figsize=(5, 5))
+    #     ax = plt.axes()
+    #     legend_handles = []
+    #     pts = self.cforager.get_prey_types()
+    #     palette = hls_palette(len(pts), l=.3, s=.8)
+    #     for i, pt in enumerate(pts):
+    #         prey_x = kwargs.get('x', 0.5 * pt.get_max_visible_distance())
+    #         prey_z = kwargs.get('z', 0.5 * pt.get_max_visible_distance())
+    #         x, y = self._roc_curve_data(pt)
+    #         dot_x = pc.get_false_positive_probability()
+    #         dot_y = pc.get_true_hit_probability()
+    #         handle = ax.plot(x, y, color=palette[i], label=pt.get_name())
+    #         legend_handles.append(handle[0])
+    #         ax.plot([dot_x], [dot_y], marker='o', markersize=5, color=palette[i])
+    #     ax.legend(handles=legend_handles, loc=4)
+    #     ax.set_xbound(lower=-0.02, upper=1.02)
+    #     ax.set_ybound(lower=-0.02, upper=1.02)
+    #     ax.set_aspect('equal', 'datalim')
+    #     ax.set_xlabel("False positive probability")
+    #     ax.set_ylabel("True hit probability")
+    #     plt.tight_layout()
+    #     plt.show()
 
     def plot_angle_response_to_velocity(self, **kwargs):
         # We want to be able to plot the effects of one strategy variable, or maybe later
@@ -197,7 +251,8 @@ class InspectableFish(ftf.FieldTestFish):
         ax.set_xlabel("Mean column velocity (m/s)")
         ax.set_ylabel("Optimal sigma_A")
         plt.tight_layout()
-        plt.show()
+        if 'figure_folder' in kwargs: plt.savefig(os.path.join(kwargs['figure_folder'], "Optimal sigma_A vs Velocity.pdf"))
+        if kwargs.get('show', True): plt.show()
 
     def plot_optimal_strategy(self, strategy_variable, **kwargs):
         # We want to be able to plot the effects of one strategy variable, or maybe later
@@ -221,7 +276,8 @@ class InspectableFish(ftf.FieldTestFish):
             ax.set_ylabel(kwargs['ylabel'])
         else:
             ax.set_ylabel(self.response_labels[response_fn])
-        # if response_fn == self.cforager.detection_probability: ax.set_ylim(0, 1)
+        if response_fn == self.cforager.detection_probability:
+            ax.set_ylim(0, 1)
         self.cforager.set_strategy(strategy, current_strategy)  # put it back when done
 
     def plot_strategies(self, response_fn, *response_fn_args, **kwargs):
@@ -235,7 +291,8 @@ class InspectableFish(ftf.FieldTestFish):
         #self._plot_single_strategy(ax5, vf.Forager.Strategy.search_image, response_fn, *response_fn_args)
         if 'title' in kwargs: plt.suptitle(kwargs['title'], fontsize=15, fontweight='bold')
         gs.tight_layout(fig, rect=[0, 0, 1.0, 0.95])
-        plt.show()
+        if 'figure_folder' in kwargs: plt.savefig(os.path.join(kwargs['figure_folder'], "Strategies.pdf"))
+        if kwargs.get('show', True): plt.show()
 
     def _plot_single_parameter(self, ax, parameter, response_fn, *response_fn_args, **kwargs):
         def y(parameter, x):
@@ -253,7 +310,8 @@ class InspectableFish(ftf.FieldTestFish):
             ax.set_ylabel(kwargs['ylabel'])
         else:
             ax.set_ylabel(self.response_labels[response_fn])
-        # if response_fn == self.cforager.detection_probability: ax.set_ylim(0, 1)
+        if response_fn == self.cforager.detection_probability:
+            ax.set_ylim(0, 1)
         self.cforager.set_parameter(parameter, current_parameter)  # put it back when done
 
     def plot_parameters(self, response_fn, *response_fn_args, **kwargs):
@@ -271,10 +329,10 @@ class InspectableFish(ftf.FieldTestFish):
         self._plot_single_parameter(ax9, vf.Forager.Parameter.omega_p, response_fn, *response_fn_args)
         self._plot_single_parameter(ax10, vf.Forager.Parameter.ti_p, response_fn, *response_fn_args)
         self._plot_single_parameter(ax11, vf.Forager.Parameter.sigma_p_0, response_fn, *response_fn_args)
-
         if 'title' in kwargs: plt.suptitle(kwargs['title'], fontsize=15, fontweight='bold')
         gs.tight_layout(fig, rect=[0, 0, 1.0, 0.95])
-        plt.show()
+        if 'figure_folder' in kwargs: plt.savefig(os.path.join(kwargs['figure_folder'], "Parameters.pdf"))
+        if kwargs.get('show', True): plt.show()
 
     def plot_discrimination_model(self, **kwargs):
         # Plot the relative size of each component of tau
@@ -297,14 +355,14 @@ class InspectableFish(ftf.FieldTestFish):
         palette = hls_palette(len(components_to_plot), l=.5, s=0.8)
         position = df['y']
         for i, component in enumerate(components_to_plot):
-            response = df[component]
+            response = np.log10(df[component])
             handle = ax_components.plot(position, response, color=palette[i], label=component)
             legend_handles.append(handle[0])
         ax_components.legend(handles=legend_handles, loc='upper center', bbox_to_anchor=(0.5, -0.15),
                              ncol=4, fancybox=True, shadow=True)
         ax_components.set_title("{0}: Perc. var. effects for {1}".format(self.label, pt.get_name()))
         ax_components.set_xlabel("Y-coordinate (in m, from upstream to downstream)")
-        ax_components.set_ylabel("Multiplier on perceptual variance (0 = no effect)")
+        ax_components.set_ylabel("Log multiplier on perceptual variance (0 = no effect)")
         ax_components.invert_xaxis()  # upstream to the left, downstream to the right
         gs1.tight_layout(fig, rect=[0, 0.1, 1, 1])
         # Create subplot showing value of perceptual variance itself
@@ -337,8 +395,9 @@ class InspectableFish(ftf.FieldTestFish):
         ax_prob.invert_xaxis()  # upstream to the left, downstream to the right
         ax_prob.set_ylim(0, 1)
         gs1.tight_layout(fig, rect=[0, 0.05, 1, 1])
+        if 'figure_folder' in kwargs: plt.savefig(os.path.join(kwargs['figure_folder'], "Discrimination Model.pdf"))
         # Show the plot
-        plt.show()
+        if kwargs.get('show', True): plt.show()
 
     def plot_detection_model(self, **kwargs):
         # Plot the relative size of each component of tau
@@ -368,7 +427,7 @@ class InspectableFish(ftf.FieldTestFish):
                              ncol=4, fancybox=True, shadow=True)
         ax_components.set_title("{0}: Tau effects for {1}".format(self.label, pt.get_name()))
         ax_components.set_xlabel("Y-coordinate (in m, from upstream to downstream)")
-        ax_components.set_ylabel("Multiplier on tau (1 = no effect)")
+        ax_components.set_ylabel("Log multiplier on tau (0 = no effect)")
         ax_components.invert_xaxis()  # upstream to the left, downstream to the right
         # Create subplot showing value of tau itself
         ax_tau = fig.add_subplot(gs1[1])
@@ -405,13 +464,15 @@ class InspectableFish(ftf.FieldTestFish):
         ax_cdf.set_ylim(0, 1)
         # Show the plot
         gs1.tight_layout(fig, rect=[0, 0.05, 1, 1])
-        plt.show()
+        if 'figure_folder' in kwargs: plt.savefig(os.path.join(kwargs['figure_folder'], "Detection Model.pdf"))
+        if kwargs.get('show', True): plt.show()
 
     def plot_tau_by_class(self, **kwargs):
         # using x/z defined by half the max viewing distance for the smallest size class
         # and time bounds defined by the passthrough time for the max sized prey, plot
         # tau for each prey type. but be aware that t=0 for each prey type is different
         # with respect to tau, and maybe offset to account for that?
+        # todo plot_tau_by_class is broken
         size_class_1mm = self.cforager.get_prey_type("1 mm size class")
         x = kwargs.get("x", size_class_1mm.get_max_visible_distance() * 0.6)
         z = kwargs.get("z", size_class_1mm.get_max_visible_distance() * 0.6)
@@ -431,11 +492,38 @@ class InspectableFish(ftf.FieldTestFish):
         plt.tight_layout()
         plt.show()
 
-    def plot_detection_probability_for_class(self, pc):
-        # radial rear-view map of detection probability
-        pass
+    def plot_detection_probabilities_rear_view(self, **kwargs):
+        set_style('white')
+        resolution = 50
+        pts = self.cforager.get_prey_types()
+        nrows = int(np.ceil(len(pts) / 3))
+        fig = plt.figure(figsize=(9, 3 * nrows), facecolor='w', dpi=300)
+        gs = gridspec.GridSpec(nrows, 3)
+        r = self.cforager.get_max_radius()
+        x = np.linspace(-r, r, resolution)
+        z = np.linspace(self.fielddata['bottom_z_m'], self.fielddata['surface_z_m'], resolution)
+        xg, zg = np.meshgrid(x, z)
+        for i in range(len(pts)):
+            pt = pts[i]
+            if self.cforager.detection_probability(0, 0, pt) > 0:
+                ax = fig.add_subplot(gs[i])
+                yg = np.empty(np.shape(xg))
+                for i in range(len(x)):
+                    for j in range(len(z)):
+                        if x[i] ** 2 + z[j] ** 2 > r ** 2:
+                            yg[j, i] = np.nan
+                        else:
+                            yg[j, i] = self.cforager.detection_probability(x[i], z[j], pt)
+                cf = ax.contourf(xg, zg, yg, 10, cmap='viridis_r')
+                ax.set_aspect('equal', 'datalim')
+                fig.colorbar(cf, ax=ax, shrink=0.9)
+                plt.title(pt.get_name())
+                plt.xlabel('x (m)')
+                plt.ylabel('z (m)')
+        if 'figure_folder' in kwargs: plt.savefig(os.path.join(kwargs['figure_folder'], "Detection Probabilities Map (Rear View).pdf"))
+        if kwargs.get('show', True): plt.show()
 
-    def plot_effects_of_sigma_A(self, t, x, z, pc):
+    def plot_effects_of_sigma_A(self, t, x, z, pc, **kwargs):
         fig = plt.figure(figsize=(12, 9))
         gs = gridspec.GridSpec(3, 2)
         ax1, ax2, ax3, ax4, ax5, ax6 = [fig.add_subplot(ss) for ss in gs]
@@ -451,7 +539,8 @@ class InspectableFish(ftf.FieldTestFish):
         self._plot_single_strategy(ax5, vf.Forager.Strategy.sigma_A, self.cforager.NREI)
         plt.suptitle("Effects of sigma_A at (x,z)=({0:.2f},{1:.2f}) for {2}".format(x, z, pc.get_name()), fontsize=15, fontweight='bold')
         gs.tight_layout(fig, rect=[0, 0, 1.0, 0.95])
-        plt.show()
+        if 'figure_folder' in kwargs: plt.savefig(os.path.join(kwargs['figure_folder'], "Effects of sigma_A.pdf"))
+        if kwargs.get('show', True): plt.show()
 
     def plot_variable_reports(self, **kwargs):
         # When reported quantities here require x, z, t, or a prey type, they either use values provided as kwargs
@@ -474,19 +563,73 @@ class InspectableFish(ftf.FieldTestFish):
             test_pt = kwargs['pt']
         else:
             test_pt = fav_pt
-        self.plot_strategies(self.cforager.NREI, title="NREI vs strategy variables")
-        self.plot_parameters(self.cforager.NREI, title="NREI vs parameters")
-        self.plot_strategies(self.cforager.tau, test_t, test_x, test_z, test_pt, title="Tau vs strategy at (x,z)=({0:.2f},{1:.2f}) for {2}".format(test_x, test_z, test_pt.get_name()))
-        self.plot_parameters(self.cforager.tau, test_t, test_x, test_z, test_pt, title="Tau vs params at (x,z)=({0:.2f},{1:.2f}) for {2}".format(test_x, test_z, test_pt.get_name()))
-        self.plot_strategies(self.cforager.detection_probability, test_x, test_z, test_pt, title="Det prob vs strategy at (x,z)=({0:.2f},{1:.2f}) for {2}".format(test_x, test_z, test_pt.get_name()))
-        self.plot_parameters(self.cforager.detection_probability, test_x, test_z, test_pt, title="Det prob vs params at (x,z)=({0:.2f},{1:.2f}) for {2}".format(test_x, test_z, test_pt.get_name()))
-        self.plot_effects_of_sigma_A(test_t, test_x, test_z, test_pt)
+        self.plot_strategies(self.cforager.NREI, title="NREI vs strategy variables", **kwargs)
+        self.plot_parameters(self.cforager.NREI, title="NREI vs parameters", **kwargs)
+        self.plot_strategies(self.cforager.tau, test_t, test_x, test_z, test_pt, title="Tau vs strategy at (x,z)=({0:.2f},{1:.2f}) for {2}".format(test_x, test_z, test_pt.get_name()), **kwargs)
+        self.plot_parameters(self.cforager.tau, test_t, test_x, test_z, test_pt, title="Tau vs params at (x,z)=({0:.2f},{1:.2f}) for {2}".format(test_x, test_z, test_pt.get_name()), **kwargs)
+        self.plot_strategies(self.cforager.detection_probability, test_x, test_z, test_pt, title="Det prob vs strategy at (x,z)=({0:.2f},{1:.2f}) for {2}".format(test_x, test_z, test_pt.get_name()), **kwargs)
+        self.plot_parameters(self.cforager.detection_probability, test_x, test_z, test_pt, title="Det prob vs params at (x,z)=({0:.2f},{1:.2f}) for {2}".format(test_x, test_z, test_pt.get_name()), **kwargs)
+        self.plot_effects_of_sigma_A(test_t, test_x, test_z, test_pt, **kwargs)
+        self.plot_detection_probabilities_vs_velocity(**kwargs)
 
-    def plot_depletion(self, **kwargs):
-        # Do a plot, probably 2-D fixed at Z=0 for easier visualization, of the pattern of
-        # drift depletion throughout a fish's volume and behind it. This should be the concentration
-        # of prey at those (x,z) coordinates times the probability that the fish hasn't
-        # captured the item yet at that point.
-        pass
+    def plot_predicted_depletion_field_2D(self, **kwargs):
+        # Do a 2-D plot fixed at z=0 for easier visualization unless specified, of the pattern of
+        # drift depletion throughout a fish's volume and behind it, in terms of energy (J) available
+        # from all prey classes combined.
+        plot_z = 0 if 'z' not in kwargs.keys() else kwargs['z']
+        numpts = 50 if 'numpts' not in kwargs.keys() else kwargs['numpts']
+        r = self.cforager.get_max_radius()
+        x = np.linspace(-r, r, numpts)
+        y = np.linspace(-r, r, numpts)
+        xg, yg = np.meshgrid(x, y)
+        zg = np.empty(np.shape(xg))
+        for i in range(len(x)):
+            for j in range(len(y)):
+                if x[i] ** 2 + y[j] ** 2 > r ** 2:
+                    zg[j, i] = np.nan
+                else:
+                    zg[j, i] = self.cforager.depleted_prey_concentration_total_energy(x[i], y[j], plot_z)
+        set_style('white')
+        efig, (ax) = plt.subplots(1, 1, facecolor='w', figsize=(3.25, 2.6), dpi=300)
+        cf = ax.contourf(xg, yg, zg, 10, cmap='viridis_r')
+        efig.colorbar(cf, ax=ax, shrink=0.9)
+        plt.title('Energy in drift after depletion (J/m$^3$)')
+        plt.xlabel('x (m)')
+        plt.ylabel('y (m)')
+        if 'figure_folder' in kwargs: plt.savefig(os.path.join(kwargs['figure_folder'], "Depletion Field 2D Top View.pdf"))
+        if kwargs.get('show', True): efig.show()
 
-    # also todo: plot detection probability vs velocity, detection probability vs debris, by prey type
+    def plot_detection_probabilities_vs_velocity(self, **kwargs):
+        # We want to be able to plot the effects of one strategy variable, or maybe later
+        # one parameter, on the optimal strategy (all other strategy variable).
+        previous_velocity = self.cforager.get_strategy(vf.Forager.Strategy.mean_column_velocity)
+        bounds = self.cforager.get_strategy_bounds(vf.Forager.Strategy.mean_column_velocity)
+        plot_x = np.linspace(bounds[0], bounds[1], kwargs.get("n_points", 30))
+        fig = plt.figure(figsize=(5, 5))
+        ax = plt.axes()
+        pts = self.cforager.get_prey_types()
+        legend_handles = []
+        for pt in pts:
+            if pt.get_prey_drift_concentration() > 0:
+                radius = pt.get_max_visible_distance()
+                theta = self.cforager.get_field_of_view()
+                rho = radius * np.sin(theta / 2) if theta < np.pi else radius
+                test_x = rho / 2 if 'x' not in kwargs.keys() else kwargs['x']
+                test_z = rho / 2 if 'z' not in kwargs.keys() else kwargs['z']
+                previous_det_prob = self.cforager.detection_probability(test_x, test_z, pt)
+                def y(x):
+                    self.cforager.set_strategy(vf.Forager.Strategy.mean_column_velocity, x)
+                    return self.cforager.detection_probability(test_x, test_z, pt)
+                plot_y = np.array([y(x) for x in plot_x])
+                handle = ax.plot(plot_x, plot_y, label=pt.get_name())
+                legend_handles.append(handle[0])
+                ax.plot([previous_velocity], [previous_det_prob], marker='o', markersize=5, color='r')
+        self.cforager.set_strategy(vf.Forager.Strategy.mean_column_velocity, previous_velocity)
+        ax.legend(handles=legend_handles, loc=1)
+        ax.set_xlabel("Mean column velocity (m/s)")
+        ax.set_ylabel("Detection probability @ 1/2 radius")
+        plt.tight_layout()
+        if 'figure_folder' in kwargs: plt.savefig(os.path.join(kwargs['figure_folder'], "Detection Probabilities vs Velocity.pdf"))
+        if kwargs.get('show', True): plt.show()
+
+    # todo: plot detection probability vs debris

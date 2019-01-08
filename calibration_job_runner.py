@@ -12,12 +12,13 @@ else:
 
 runner.run_jobs()
 #
-# test_fish = runner.fishes[0]
-# test_fish.cforager.print_parameters()
-# test_fish.cforager.print_strategy()
-# test_fish.evaluate_fit()
+test_fish = runner.fishes[2]
+test_fish.cforager.print_parameters()
+test_fish.plot_detection_model()
+
+test_fish.cforager.print_strategy()
+test_fish.evaluate_fit()
 #
-# test_fish.plot_detection_model()
 #
 # test_fish.cforager.set_parameter(test_fish.cforager.get_parameter_named('alpha_tau'), 1.0) # to reset caches
 # testx=0.01

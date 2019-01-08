@@ -28,7 +28,7 @@ spec.loader.exec_module(vf)
 with open(FIELD_DATA_FILE, 'r') as fdf:
     json_data = json.load(fdf)
 
-# fish_data = json_data['2015-07-17-3 Panguingue - Dolly Varden (id #4)']
+fish_data = json_data['2015-07-17-3 Panguingue - Dolly Varden (id #4)']
 # fish_data['prey_categories_characteristics']
 # fish_data['diet_by_category']
 
@@ -127,7 +127,6 @@ class FieldTestFish:
                                               else bounds)
                                         for name, bounds in self.parameter_bounds.items()}
 
-
     def foraging_point_distribution_distance(self, verbose=True, plot=False):
         # First, we split the a cubic foraging region encompassing the max radius into many (gridsize^3)
         # cells and compute the relative concentration of prey pursuits at each position. Areas predicted
@@ -193,7 +192,6 @@ class FieldTestFish:
         def vprint(text):
             if verbose:
                 print(text)
-        vprint("Evaluating fit to field data for one solution.")
         self.cforager.analyze_results()
         # Individually important fields
         predicted_fa_rate = self.cforager.get_foraging_attempt_rate()
@@ -223,7 +221,7 @@ class FieldTestFish:
             if predicted > 0 or observed > 0:
                 diet_obj_count += 1
                 diet_obj_total += (predicted - observed) ** 2
-                vprint("For diet category '{0}', predicted proportion {1:.3f}, observed proportion {2:.3f}.".format(pt.get_name(), predicted, observed))
+                vprint("For diet category '{0}', predicted proportion {1:.6f}, observed proportion {2:.6f}.".format(pt.get_name(), predicted, observed))
         diet_part = np.sqrt(diet_obj_total / diet_obj_count) * objective_weights['diet_proportions_combined'] # RMS error, weighted
         # NREI -- not used in objective function, just for curiosity/printing.
         predicted_NREI = self.cforager.NREI()
