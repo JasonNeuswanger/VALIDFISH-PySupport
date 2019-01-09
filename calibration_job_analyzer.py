@@ -12,7 +12,7 @@ from job_runner import JobRunner
 export_plots = True
 show_plots = False
 
-job_name = 'Fifteen1'
+job_name = 'NewFifteen'
 
 runner = JobRunner(job_name, readonly=True)
 figure_folder = os.path.join(os.path.sep, 'Users', 'Jason', 'Desktop', 'TempFig', job_name)
@@ -182,6 +182,14 @@ for fish in runner.fishes:
     fish.save_state()
 
 # --------------------------------------------------------------------------------------------------------
+# EXPORT EVERYTHING TO FILE
+# --------------------------------------------------------------------------------------------------------
+
+for fish in runner.fishes:
+    fish.export_full_analysis(base_folder="/Users/Jason/Desktop/TempFig/", job_name=job_name)
+
+
+# --------------------------------------------------------------------------------------------------------
 # LOAD FISH STATES
 # --------------------------------------------------------------------------------------------------------
 
@@ -221,10 +229,12 @@ for fish in runner.fishes:
 # and then see if predicted optimal velocities match observations after fitting the model based
 # solely on the other considerations?
 
-test_fish = runner.fishes[0]
+test_fish = runner.fishes[14]
+fig3d = test_fish.plot_predicted_detection_field_3D(colorMax=None, gridsize=80j, bgcolor=(0, 0, 0))
+
 test_fish.cforager.print_parameters()
 test_fish.evaluate_fit()
-fig3d = test_fish.plot_predicted_detection_field(colorMax=None, gridsize=80j, bgcolor=(0, 0, 0))
+
 
 test_fish.plot_detection_model()
 test_fish.plot_discrimination_model()
@@ -296,9 +306,6 @@ print("Total of predicted diet is {0:.6f}".format(np.array(predicted_diet).sum()
 
 #runner.optimize_forager_with_parameters(test_fish, *X_best[-1])
 #test_fish.cforager.print_strategy()
-
-
-
 
 # now need a way to show attempt rate, focal velocity, proportion ingested, NREI
 
