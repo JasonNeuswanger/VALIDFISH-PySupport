@@ -58,12 +58,15 @@ class JobRunner:
                 return self.job_properties[job_property] != self.previous_job_properties[job_property]
 
     def safe_query(self, query):
-        try:
-            self.cursor.execute(query)
-        except Exception as e:
-            print("Exception in MySQL during query:\n\n{0}\n\nException was:\n\n{1}\n\nSleeping 30 seconds and retrying.".format(query, repr(e)))
-            sleep(30)
-            self.safe_query(query)
+        retry = True  # just to start the loop, even though the first try isn't a retry
+        while retry:
+            try:
+                self.cursor.execute(query)
+                retry = False
+            except Exception as e:
+                print("Exception in MySQL during query:\n\n{0}\n\nException was:\n\n{1}\n\nSleeping 30 seconds and retrying.".format(query, repr(e)))
+                retry = True
+                sleep(30)
 
     def load_job_properties(self):
         if self.readonly:
