@@ -93,7 +93,7 @@ class FieldTestFish:
             1e-3,                                   # nu_0
             2.0,                                    # discriminability
             1e-2,                                   # delta_p
-            3.0,                                    # omega_p
+            1.0,                                    # omega_p
             0.5,                                    # ti_p
             1.0,                                    # sigma_p_0
             INTERPOLATION_ROOT                      # base directory for maneuver interpolation files
