@@ -143,7 +143,7 @@ class FieldTestFish:
         raw_predictions = vfunc(x, y, z).flatten()
         predictions = np.array(sorted(raw_predictions[raw_predictions > 0]))
         if len(predictions) == 0:
-            print("WARNING! Predicted zero foraging. Something is wrong with the parameters. Printed raw predictions below. Returning maxium Wasserstein-like distance of 1.")
+            print("WARNING! Predicted no pursuits at any spatial position with relative_pursuits_by_position. Something is wrong with the parameters. Returning maxium Wasserstein-like distance of 1.")
             return 1
         # Now we load the field observations of detection positions and calculate the relative concentration
         # of pursued items predicted to be detected at each of these points.
@@ -222,7 +222,11 @@ class FieldTestFish:
                 diet_obj_count += 1
                 diet_obj_total += (predicted - observed) ** 2
                 vprint("For diet category '{0}', predicted proportion {1:.6f}, observed proportion {2:.6f}.".format(pt.get_name(), predicted, observed))
-        diet_part = np.sqrt(diet_obj_total / diet_obj_count) * objective_weights['diet_proportions_combined'] # RMS error, weighted
+        if (np.isnan(diet_obj_total)):
+            vprint("WARNING: Diet proportions were NaN, perhaps because fish didn't eat anything. Maximizing this part of the objective function.")
+            diet_part = diet_obj_count * objective_weights['diet_proportions_combined']
+        else:
+            diet_part = np.sqrt(diet_obj_total / diet_obj_count) * objective_weights['diet_proportions_combined'] # RMS error, weighted
         # NREI -- not used in objective function, just for curiosity/printing.
         predicted_NREI = self.cforager.NREI()
         predicted_GREI = self.cforager.GREI()
