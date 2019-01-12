@@ -246,6 +246,11 @@ class JobRunner:
                 self.create_initial_jobs()
             job_data = None
             while job_data is None:
+                self.safe_query("SELECT COUNT(*) AS jobs_waiting FROM job_results WHERE start_time IS NULL AND job_name=\"{0}\"".format(self.job_name))
+                if self.cursor.fetchone()['jobs_waiting'] == round(self.job_properties['batch_size']/2):  # new block to start creating new jobs when old ones are half processed
+                    self.safe_query("SELECT COUNT(*) AS job_creator_count FROM job_runners WHERE current_task=\"Creating New Jobs\"")
+                    if self.cursor.fetchone()['job_creator_count'] < 2:
+                        self.create_iterated_jobs()
                 self.safe_query("SELECT * FROM job_results WHERE start_time IS NULL AND job_name=\"{0}\" LIMIT 1".format(self.job_name))
                 job_data = self.cursor.fetchone()
                 if job_data is None:
@@ -253,7 +258,8 @@ class JobRunner:
                     if self.cursor.fetchone() is None:
                         self.create_iterated_jobs()
                     else:
-                        sleep(15)
+                        self.safe_query("UPDATE job_runners SET current_task=\"Awaiting New Job Creation\" WHERE id={0}".format(job_data['id']))
+                        sleep(30)
             self.safe_query("UPDATE job_results SET start_time=NOW() WHERE id={0}".format(job_data['id']))
             self.safe_query("UPDATE job_runners SET current_task=\"Running Job {1}\" WHERE id={0}".format(self.runner_id, job_data['id']))
             param_values = [job_data[param] for param in self.parameters_to_optimize]

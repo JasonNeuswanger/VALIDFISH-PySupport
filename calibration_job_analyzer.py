@@ -12,7 +12,7 @@ from job_runner import JobRunner
 export_plots = True
 show_plots = False
 
-job_name = 'NewFifteen'
+job_name = 'Fifteen2'
 
 runner = JobRunner(job_name, readonly=True)
 figure_folder = os.path.join(os.path.sep, 'Users', 'Jason', 'Desktop', 'TempFig', job_name)
@@ -229,7 +229,7 @@ for fish in runner.fishes:
 # and then see if predicted optimal velocities match observations after fitting the model based
 # solely on the other considerations?
 
-test_fish = runner.fishes[14]
+test_fish = runner.fishes[1]
 fig3d = test_fish.plot_predicted_detection_field_3D(colorMax=None, gridsize=80j, bgcolor=(0, 0, 0))
 
 test_fish.cforager.print_parameters()
