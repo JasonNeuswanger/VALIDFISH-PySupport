@@ -60,6 +60,8 @@ class InspectableFish(ftf.FieldTestFish):
                 print(self.cforager.format_parameters_to_print())
                 print("\n---------------------------------ANALYTICS----------------------------------\n")
                 print(self.cforager.format_analytics_to_print())
+        print("Plotting foraging point predicted vs observed distributions.")
+        self.foraging_point_distribution_distance(verbose=False, plot=True, show=False, figure_folder=fish_folder)
         print("Making discrimination model plots.")
         self.plot_discrimination_model(show=False, figure_folder=fish_folder)
         print("Making detection model plots.")
@@ -68,6 +70,10 @@ class InspectableFish(ftf.FieldTestFish):
         self.plot_detection_probabilities_rear_view(show=False, figure_folder=fish_folder)
         print("Making predicted depletion field top-view plot.")
         self.plot_predicted_depletion_field_2D(show=False, figure_folder=fish_folder)
+        print("Making predicted detection field top-view plot.")
+        self.plot_predicted_detection_field_2D(show=False, figure_folder=fish_folder)
+        print("Plotting diet proportions.")
+        self.plot_diet_proportions(show=False, figure_folder=fish_folder)
         print("Making detailed variable report plots (takes a while).")
         self.plot_variable_reports(show=False, figure_folder=fish_folder)
         print("Finished plots for fish {0}.".format(self.label))
@@ -127,10 +133,10 @@ class InspectableFish(ftf.FieldTestFish):
             mlab.colorbar(vol)
 
         if kwargs.get('show_fielddata', True):
-            (px, py, pz) = 100 * np.transpose(np.asarray(self.fielddata['detection_positions']))
+            (px, py, pz) = 100 * np.transpose(np.asarray(self.field_detection_positions))
             point_radius = 0.005 * self.fork_length_cm
             d = np.repeat(2 * point_radius, px.size)  # creates an array of point diameters
-            mlab.points3d(py, -px, pz, d, color=kwargs.get('pointcolor', self.color), scale_factor=8, resolution=12,
+            mlab.points3d(px, py, pz, d, color=kwargs.get('pointcolor', self.color), scale_factor=8, resolution=12,
                           opacity=1.0, figure=myFig)
 
         if kwargs.get('surfaces', True):
@@ -599,6 +605,39 @@ class InspectableFish(ftf.FieldTestFish):
         if 'figure_folder' in kwargs: plt.savefig(os.path.join(kwargs['figure_folder'], "Depletion Field 2D Top View.pdf"))
         if kwargs.get('show', True): efig.show()
 
+    def plot_predicted_detection_field_2D(self, **kwargs):
+        # Do a 2-D plot fixed at z=0 for easier visualization unless specified, of the pattern of
+        # drift depletion throughout a fish's volume and behind it, in terms of energy (J) available
+        # from all prey classes combined.
+        plot_z = 0 if 'z' not in kwargs.keys() else kwargs['z']
+        numpts = 200 if 'numpts' not in kwargs.keys() else kwargs['numpts']
+        r = self.cforager.get_max_radius()
+        x = np.linspace(-r, r, numpts)
+        y = np.linspace(-r, r, numpts)
+        xg, yg = np.meshgrid(x, y)
+        zg = np.empty(np.shape(xg))
+        for i in range(len(x)):
+            for j in range(len(y)):
+                if x[i] ** 2 + y[j] ** 2 > r ** 2:
+                    zg[j, i] = np.nan
+                else:
+                    zg[j, i] = self.cforager.relative_pursuits_by_position(x[i], y[j], plot_z)
+        set_style('white')
+        efig, (ax) = plt.subplots(1, 1, facecolor='w', figsize=(3.25, 2.6), dpi=300)
+        plt.axhline(color='0.5', linewidth=0.1)
+        plt.axvline(color='0.5', linewidth=0.1)
+        cf = ax.contourf(xg, yg, zg, 50, cmap='viridis_r')
+        efig.colorbar(cf, ax=ax, shrink=0.9)
+        plt.title('Relative pursuits (top view at z={0})'.format(plot_z))
+        plt.xlabel('x (m)')
+        plt.ylabel('y (m)')
+        if kwargs.get('show_fielddata', True):
+            (px, py, pz) = np.transpose(np.asarray(self.fielddata['detection_positions']))
+            plt.scatter(px, py, s=0.1, c='k')
+        if 'figure_folder' in kwargs:
+            plt.savefig(os.path.join(kwargs['figure_folder'], "Detection Field 2D Top View.pdf"))
+        if kwargs.get('show', True): efig.show()
+
     def plot_detection_probabilities_vs_velocity(self, **kwargs):
         # We want to be able to plot the effects of one strategy variable, or maybe later
         # one parameter, on the optimal strategy (all other strategy variable).
@@ -633,3 +672,40 @@ class InspectableFish(ftf.FieldTestFish):
         if kwargs.get('show', True): plt.show()
 
     # todo: plot detection probability vs debris
+
+    def plot_diet_proportions(self, **kwargs):
+        test_fish.cforager.analyze_results()  # required for calculating diet proportion
+        observed_diet = []
+        predicted_diet = []
+        labels = []
+        diet_obj_count = 0
+        diet_obj_total = 0
+        dietdata = [item for item in self.fielddata['diet_by_category'].values() if item['number'] is not None]
+        for dd in sorted(dietdata, key=lambda x: x['number']):
+            pt =self.cforager.get_prey_type(dd['name'])
+            labels.append(pt.get_name())
+            predicted = self.cforager.get_diet_proportion_for_prey_type(pt)
+            observed = dd['diet_proportion']
+            if predicted > 0 or observed > 0:
+                diet_obj_count += 1
+                diet_obj_total += (predicted - observed) ** 2
+            observed_diet.append(observed)
+            predicted_diet.append(predicted)
+        diet_rmse = np.sqrt(diet_obj_total / diet_obj_count)
+        fig = plt.figure(figsize=(6, 4))
+        gs = gridspec.GridSpec(1, 1)
+        ax1, = [fig.add_subplot(ss) for ss in gs]
+        pred_handle = ax1.barh(np.arange(1, 1 + len(predicted_diet)), predicted_diet, align='center', height=0.8,
+                               tick_label=labels, label="Predicted")
+        obs_handle = ax1.barh(np.arange(1, 1 + len(predicted_diet)), -np.array(observed_diet), align='center',
+                              height=0.8, tick_label=labels, label="Observed")
+        ax1.legend(handles=[pred_handle,
+                            obs_handle])  # , loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=2, fancybox=True, shadow=True)
+        ax1.set_xlim(-1, 1)
+        ax1.axvline(0, color='k', linewidth=1)
+        plt.xticks([-1, 0, 1], [1, 0, 1])
+        plt.figtext(0.78, 0.72, "rmse={0:.4f}".format(diet_rmse))
+        ax1.set_title("Diet proportions")
+        gs.tight_layout(fig, rect=[0, 0, 1.0, 1.0])
+        if 'figure_folder' in kwargs: plt.savefig(os.path.join(kwargs['figure_folder'], "Diet Proportions.pdf"))
+        if kwargs.get('show', True): plt.show()

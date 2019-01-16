@@ -3,6 +3,7 @@ import numpy as np
 import importlib.util
 import json
 import sys
+import os
 import pickle
 import statsmodels.api as sm
 import scipy
@@ -72,6 +73,11 @@ class FieldTestFish:
         self.label = data['label']
         self.fork_length_cm = data['fork_length_cm']
 
+        # In the original field data coords, +x is downstream, +y is cross-stream to the right, and +z is vertical
+        # In the model coords, +x is cross-stream to the right, +y is upstream, and +z is vertical
+        # The line below, we convert detection positions from field data coords into model coords
+        self.field_detection_positions = [[y, -x, z] for (x, y, z) in data['detection_positions']]
+
         self.cforager = vf.Forager(
             data['fork_length_cm'],                 # fork length (cm)
             data['mass_g'],                         # mass (g)
@@ -127,7 +133,7 @@ class FieldTestFish:
                                               else bounds)
                                         for name, bounds in self.parameter_bounds.items()}
 
-    def foraging_point_distribution_distance(self, verbose=True, plot=False):
+    def foraging_point_distribution_distance(self, **kwargs):
         # First, we split the a cubic foraging region encompassing the max radius into many (gridsize^3)
         # cells and compute the relative concentration of prey pursuits at each position. Areas predicted
         # to have not just very few but zero pursuits (generally outside the search volume) are then
@@ -147,8 +153,7 @@ class FieldTestFish:
             return 1
         # Now we load the field observations of detection positions and calculate the relative concentration
         # of pursued items predicted to be detected at each of these points.
-        observations = np.array([self.cforager.relative_pursuits_by_position(*coords) for coords in
-                                 self.fielddata['detection_positions']])
+        observations = np.array([self.cforager.relative_pursuits_by_position(*coords) for coords in self.field_detection_positions])
         overall_max = max(predictions.max(), observations.max())
         predictions /= overall_max
         observations /= overall_max
@@ -166,9 +171,9 @@ class FieldTestFish:
         def integrand(x):
             return abs(observation_cdf(x) - sums_interp(x))
         newmetric = scipy.integrate.quad(integrand, min(predictions), max(predictions))[0]
-        if verbose:
+        if kwargs.get('verbose', True):
             print("Foraging position wasserstein-like distance is {0:.4f}.".format(newmetric))
-        if plot:
+        if kwargs.get('plot', False):
             import matplotlib.pyplot as plt
             plt.clf()
             plot_x = np.linspace(min(predictions), max(predictions), num=200)
@@ -181,7 +186,8 @@ class FieldTestFish:
             plt.figtext(0.8, 0.3, "dist={0:.4f}".format(newmetric))
             plt.xlabel("Normalized 'relative pursuits by position'")
             plt.ylabel("Proportion of activity at that value or below")
-            plt.show()
+            if 'figure_folder' in kwargs: plt.savefig(os.path.join(kwargs['figure_folder'], "Foraging Point Distribution Distance.pdf"))
+            if kwargs.get('show', True): plt.show()
         return newmetric
 
     def evaluate_fit(self, verbose=True):
