@@ -12,9 +12,9 @@ from job_runner import JobRunner
 export_plots = True
 show_plots = False
 
-job_name = 'Fifteen2'
-
+job_name = 'Fifteen3'
 runner = JobRunner(job_name, readonly=True)
+
 figure_folder = os.path.join(os.path.sep, 'Users', 'Jason', 'Desktop', 'TempFig', job_name)
 if not os.path.exists(figure_folder):
     os.makedirs(figure_folder)
@@ -216,8 +216,12 @@ for fish in runner.fishes:
 # and then see if predicted optimal velocities match observations after fitting the model based
 # solely on the other considerations?
 
-test_fish = runner.fishes[0]
+test_fish = runner.fishes[1]
 fig3d = test_fish.plot_predicted_detection_field_3D(colorMax=None, gridsize=80j, bgcolor=(0, 0, 0), surfaces=False)
+
+test_fish = runner.fishes[0]
+test_fish.plot_predicted_detection_field_2D()
+
 
 fig3d = test_fish.plot_predicted_depletion_field_3D(colorMax=None, gridsize=80j, bgcolor=(0, 0, 0), surfaces=False)
 
@@ -244,19 +248,46 @@ def plot_predicted_detection_field_2D(self, **kwargs):
     efig, (ax) = plt.subplots(1, 1, facecolor='w', figsize=(3.25, 2.6), dpi=300)
     plt.axhline(color='0.5', linewidth=0.1)
     plt.axvline(color='0.5', linewidth=0.1)
-    cf = ax.contourf(xg, yg, zg, 50, cmap='viridis_r')
+    cf = ax.contourf(xg, yg, zg, 20, cmap='viridis_r')
     efig.colorbar(cf, ax=ax, shrink=0.9)
     plt.title('Relative pursuits (top view at z={0})'.format(plot_z))
     plt.xlabel('x (m)')
     plt.ylabel('y (m)')
     if kwargs.get('show_fielddata', True):
-        (px, py, pz) = np.transpose(np.asarray(self.fielddata['detection_positions']))
+        (px, py, pz) = np.transpose(np.asarray(self.field_detection_positions))
         plt.scatter(px, py, s=0.1, c='k')
     if 'figure_folder' in kwargs: plt.savefig(os.path.join(kwargs['figure_folder'], "Detection Field 2D Top View.pdf"))
     if kwargs.get('show', True): efig.show()
 
-test_fish = runner.fishes[3]
-plot_predicted_detection_field_2D(test_fish)
+test_fish = runner.fishes[6]
+test_fish.plot_predicted_detection_field_2D()
+
+test_fish.cforager.relative_pursuits_by_position(-0.24,0.2,0.0)
+test_fish.cforager.relative_pursuits_by_position(0.24,0.2,0.0)
+
+test_fish.cforager.relative_pursuits_by_position(0.21,0.2,0.0)
+test_fish.cforager.relative_pursuits_by_position(0.21,0.2,0.0)
+
+
+# the results from relative_pursuits_by_position match up well the first time and second time
+# when detection probability cache is disabled, but badly mismatch the second time when it is
+# enabled. given that the results when it's disabled are closer to the first of the mismatched
+# values, ie when everything is directly calculated rather than pulled from the cache, it seems
+# there's a problem with the values the cache is returning
+# I added some prints of cache vales, and the problem went away
+# Removed them, and it stayed away
+# I have no idea what is going on.
+
+
+
+test_fish = runner.fishes[9]
+test_fish.cforager.relative_pursuits_by_position(-0.2,0.2,0.0)
+
+# some problem with caching of relative_pursuits_by_position, first call on negative side gives negative value
+# this happens on the positive side with the first call, too
+# how does this affect things?
+
+test_fish.plot_predicted_detection_field_2D()
 
 test_fish.plot_predicted_depletion_field_2D()
 

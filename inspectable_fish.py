@@ -92,8 +92,7 @@ class InspectableFish(ftf.FieldTestFish):
         mlab.clf(myFig)
         head_position = np.array((0, 0, 0))
         tail_position = np.array((0, -self.fork_length_cm, 0))
-        Fish3D.fish3D(head_position, tail_position, self.species, myFig, color=self.color,
-                      world_vertical=np.array([0, 0, 1]))
+        Fish3D.fish3D(head_position, tail_position, self.species, myFig, color=self.color, world_vertical=np.array([0, 0, 1]))
         vmax = np.max(s) if colorMax is None else colorMax
         vol = mlab.pipeline.volume(mlab.pipeline.scalar_field(x, y, z, s), vmin=0.0, vmax=vmax)
 
@@ -110,10 +109,7 @@ class InspectableFish(ftf.FieldTestFish):
         def rel_pursuits_value_percentile(pct):
             def objfn(x):
                 return abs(sums_interp(x) - pct)
-
-            return \
-            scipy.optimize.minimize(objfn, [1], method='L-BFGS-B', bounds=[(min(predictions), max(predictions))]).x[
-                0]
+            return scipy.optimize.minimize(objfn, [1], method='L-BFGS-B', bounds=[(min(predictions), max(predictions))]).x[0]
 
         def my_otf_value(v, exponent, divisor):
             return (v / divisor) ** exponent
@@ -632,7 +628,7 @@ class InspectableFish(ftf.FieldTestFish):
         plt.xlabel('x (m)')
         plt.ylabel('y (m)')
         if kwargs.get('show_fielddata', True):
-            (px, py, pz) = np.transpose(np.asarray(self.fielddata['detection_positions']))
+            (px, py, pz) = np.transpose(np.asarray(self.field_detection_positions))
             plt.scatter(px, py, s=0.1, c='k')
         if 'figure_folder' in kwargs:
             plt.savefig(os.path.join(kwargs['figure_folder'], "Detection Field 2D Top View.pdf"))

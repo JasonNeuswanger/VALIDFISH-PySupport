@@ -89,7 +89,7 @@ class JobRunner:
                 quit("ERROR: No job description found with name {0}.".format(self.job_name))
             if self.job_properties['iterations_completed'] >= self.job_properties['max_iterations']:
                 self.safe_query("UPDATE job_runners SET current_task=\"Completed (Max Iterations Reached)\", stopped=1 WHERE id={0}".format(self.runner_id))
-                quit("quiting script : reached max number of iterations.")
+                quit("Quitting script : reached max number of iterations.")
             self.opt_cores = self.cores_per_node - 2  # grey wolf algorithm pack size
             self.opt_iters = self.job_properties['grey_wolf_iterations']
             if self.job_property_changed('fish_group'):
