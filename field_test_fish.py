@@ -38,10 +38,10 @@ fish_data = json_data['2015-07-17-3 Panguingue - Dolly Varden (id #4)']
 
 objective_weights = {
     'foraging_attempt_rate': 1,
-    'focal_velocity': 1,
-    'proportion_ingested': 1,
-    'spatial': 5,
-    'diet_proportions_combined': 3
+    'focal_velocity': 3,
+    'proportion_ingested': 0.2,
+    'spatial': 20,
+    'diet_proportions_combined': 5
 }
 
 # CALCULATE OVERALL AVERAGE PREY TYPE ATTRIBUTES for filling in mass/energy in cases where it shows up as 0 in the fish

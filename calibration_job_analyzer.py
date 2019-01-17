@@ -12,7 +12,7 @@ from job_runner import JobRunner
 export_plots = True
 show_plots = False
 
-job_name = 'Fifteen3'
+job_name = 'Fifteen5'
 runner = JobRunner(job_name, readonly=True)
 
 figure_folder = os.path.join(os.path.sep, 'Users', 'Jason', 'Desktop', 'TempFig', job_name)
@@ -86,7 +86,7 @@ for i, param_data in enumerate(X_all.T):
     handle = ax2.plot(vscale(param_data), color=palette[i], label=param_names[i])
     legend_handles.append(handle[0])
 ax2.legend(handles=legend_handles, loc=2)
-ax2.set_ylabel('Parameter value (or log10)')
+ax2.set_ylabel('Parameter or log10 (scaled)')
 ax2.set_xlabel('Evaluations')
 # Subplot for best parameters
 legend_handles = []
@@ -101,7 +101,7 @@ for i, param_data in enumerate(X_best.T):
     handle = ax3.plot(vscale(param_data), color=palette[i], label=param_names[i])
     legend_handles.append(handle[0])
 ax3.legend(handles=legend_handles, loc=2)
-ax3.set_ylabel('Parameter value (or log10)')
+ax3.set_ylabel('Parameter or log10 (scaled)')
 ax3.set_xlabel('Evaluations')
 # Subplot for distance between consecutive X
 xdiffs = np.linalg.norm(X_all[1:]-X_all[:-1], axis=1)

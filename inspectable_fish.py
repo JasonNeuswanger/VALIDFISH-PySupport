@@ -527,18 +527,17 @@ class InspectableFish(ftf.FieldTestFish):
 
     def plot_effects_of_sigma_A(self, t, x, z, pc, **kwargs):
         fig = plt.figure(figsize=(12, 9))
-        gs = gridspec.GridSpec(3, 2)
-        ax1, ax2, ax3, ax4, ax5, ax6 = [fig.add_subplot(ss) for ss in gs]
+        gs = gridspec.GridSpec(2, 2)
+        ax1, ax2, ax3, ax4 = [fig.add_subplot(ss) for ss in gs]
         def detection_pdf(t, x, z, pc):
             tau = self.cforager.tau(t, x, z, pc)
             return np.exp(-t/tau) / tau
         def search_rate_multiplier_on_tau():
             return 1 + self.cforager.get_search_rate() / self.cforager.get_parameter(vf.Forager.Parameter.Z_0)
         self._plot_single_strategy(ax1, vf.Forager.Strategy.sigma_A, self.cforager.tau, t, x, z, pc)
-        self._plot_single_strategy(ax2, vf.Forager.Strategy.sigma_A, self.cforager.passage_time, x, z, pc)
-        self._plot_single_strategy(ax3, vf.Forager.Strategy.sigma_A, self.cforager.detection_probability, x, z, pc)
-        self._plot_single_strategy(ax4, vf.Forager.Strategy.sigma_A, detection_pdf, t, x, z, pc, ylabel='Detection PDF')
-        self._plot_single_strategy(ax5, vf.Forager.Strategy.sigma_A, self.cforager.NREI)
+        self._plot_single_strategy(ax2, vf.Forager.Strategy.sigma_A, self.cforager.detection_probability, x, z, pc)
+        self._plot_single_strategy(ax3, vf.Forager.Strategy.sigma_A, detection_pdf, t, x, z, pc, ylabel='Detection PDF')
+        self._plot_single_strategy(ax4, vf.Forager.Strategy.sigma_A, self.cforager.NREI)
         plt.suptitle("Effects of sigma_A at (x,z)=({0:.2f},{1:.2f}) for {2}".format(x, z, pc.get_name()), fontsize=15, fontweight='bold')
         gs.tight_layout(fig, rect=[0, 0, 1.0, 0.95])
         if 'figure_folder' in kwargs: plt.savefig(os.path.join(kwargs['figure_folder'], "Effects of sigma_A.pdf"))
@@ -670,7 +669,7 @@ class InspectableFish(ftf.FieldTestFish):
     # todo: plot detection probability vs debris
 
     def plot_diet_proportions(self, **kwargs):
-        test_fish.cforager.analyze_results()  # required for calculating diet proportion
+        self.cforager.analyze_results()  # required for calculating diet proportion
         observed_diet = []
         predicted_diet = []
         labels = []
