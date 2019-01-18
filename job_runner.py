@@ -63,8 +63,9 @@ class JobRunner:
         while retry:
             self.connect_to_database()  # waits to reconnect if connection is closed
             try:
+                if hasattr(self, 'runner_id'):  # so we don't get errors during the creation queries
+                    self.cursor.execute("UPDATE job_runners SET latest_activity=NOW() WHERE id={0}".format(self.runner_id)) # must go before main query so fetch() functions later don't get result of None from UPDATE
                 self.cursor.execute(query)
-                self.cursor.execute("UPDATE job_runners SET latest_activity=NOW() WHERE id={0}".format(self.runner_id))
                 retry = False
             except Exception as e:
                 print("Exception in MySQL during query:\n\n{0}\n\nException was:\n\n{1}\n\nSleeping 30 seconds and retrying.".format(query, repr(e)))
@@ -72,27 +73,25 @@ class JobRunner:
 
     def safe_fetchone(self):
         retry = True  # just to start the loop, even though the first try isn't a retry
-        result = None
+        result = 'ShouldNeverReturnThis'
         while retry:
-            self.connect_to_database()  # waits to reconnect if connection is closed
             try:
                 result = self.cursor.fetchone()
                 retry = False
             except Exception as e:
-                print("Exception in MySQL during fetchone. Exception was:\n\n{0}\n\nSleeping 30 seconds and retrying.".format(repr(e)))
+                print("Exception during safe_fetchone(). Exception was:\n\n{0}\n\nSleeping 30 seconds and retrying.".format(repr(e)))
                 sleep(30)
         return result
 
     def safe_fetchall(self):
         retry = True  # just to start the loop, even though the first try isn't a retry
-        result = None
+        result = 'ShouldNeverReturnThis'
         while retry:
-            self.connect_to_database()  # waits to reconnect if connection is closed
             try:
                 result = self.cursor.fetchall()
                 retry = False
             except Exception as e:
-                print("Exception in MySQL during fetchall. Exception was:\n\n{0}\n\nSleeping 30 seconds and retrying.".format(repr(e)))
+                print("Exception  during safe_fetchall(). Exception was:\n\n{0}\n\nSleeping 30 seconds and retrying.".format(repr(e)))
                 sleep(30)
         return result
 
