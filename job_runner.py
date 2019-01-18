@@ -30,23 +30,71 @@ class JobRunner:
         self.cores_per_node = cores_per_node
         with open('Fish_Groups.json', 'r') as fgf:
             self.fish_groups = json.load(fgf)
-        with open('db_settings.pickle', 'rb') as handle:
-            db_settings = pickle.load(handle)
-            self.db = pymysql.connect(host=db_settings['host'], port=db_settings['port'], user=db_settings['user'],
-                                 passwd=db_settings['passwd'], db=db_settings['db'], autocommit=True,
-                                 cursorclass=pymysql.cursors.DictCursor)
-            self.cursor = self.db.cursor()
-
+        self.connect_to_database()
         if not readonly:
-            self.safe_query("INSERT INTO job_runners (current_job_name, machine_name, current_task, cores_per_node) VALUES (\"{0}\", \"{1}\", \"{2}\", {3})".format(initial_job_name, self.machine_name, "Awaiting Job Assignment", self.cores_per_node))
+            self.safe_query("INSERT INTO job_runners (current_job_name, machine_name, current_task, cores_per_node, latest_activity) VALUES (\"{0}\", \"{1}\", \"{2}\", {3}, NOW())".format(initial_job_name, self.machine_name, "Awaiting Job Assignment", self.cores_per_node))
             self.safe_query("SELECT LAST_INSERT_ID()")
-            self.runner_id = self.cursor.fetchone()['LAST_INSERT_ID()']
+            self.runner_id = self.safe_fetchone()['LAST_INSERT_ID()']
         else:
             self.runner_id = -1
         self.load_job_properties()
 
+    def connect_to_database(self):
+        if not hasattr(self, 'db_connection') or not self.db_connection.open:
+            with open('db_settings.pickle', 'rb') as handle:
+                db_settings = pickle.load(handle)
+                retry = True # just to start the loop, even though the first try isn't a retry
+                while retry:
+                    try:
+                        self.db_connection = pymysql.connect(host=db_settings['host'], port=db_settings['port'], user=db_settings['user'],
+                                             passwd=db_settings['passwd'], db=db_settings['db'], autocommit=True,
+                                             cursorclass=pymysql.cursors.DictCursor)
+                        retry = False
+                    except Exception as e:
+                        print("Exception connecting to MySQL. Exception was:\n\n{0}\n\nSleeping 2 minutes and retrying.".format(repr(e)))
+                        sleep(120)
+                self.cursor = self.db_connection.cursor()
+
     def __del__(self):
-        self.db.close()
+        self.db_connection.close()
+
+    def safe_query(self, query):
+        retry = True  # just to start the loop, even though the first try isn't a retry
+        while retry:
+            self.connect_to_database()  # waits to reconnect if connection is closed
+            try:
+                self.cursor.execute(query)
+                self.cursor.execute("UPDATE job_runners SET latest_activity=NOW() WHERE id={0}".format(self.runner_id))
+                retry = False
+            except Exception as e:
+                print("Exception in MySQL during query:\n\n{0}\n\nException was:\n\n{1}\n\nSleeping 30 seconds and retrying.".format(query, repr(e)))
+                sleep(30)
+
+    def safe_fetchone(self):
+        retry = True  # just to start the loop, even though the first try isn't a retry
+        result = None
+        while retry:
+            self.connect_to_database()  # waits to reconnect if connection is closed
+            try:
+                result = self.cursor.fetchone()
+                retry = False
+            except Exception as e:
+                print("Exception in MySQL during fetchone. Exception was:\n\n{0}\n\nSleeping 30 seconds and retrying.".format(repr(e)))
+                sleep(30)
+        return result
+
+    def safe_fetchall(self):
+        retry = True  # just to start the loop, even though the first try isn't a retry
+        result = None
+        while retry:
+            self.connect_to_database()  # waits to reconnect if connection is closed
+            try:
+                result = self.cursor.fetchall()
+                retry = False
+            except Exception as e:
+                print("Exception in MySQL during fetchall. Exception was:\n\n{0}\n\nSleeping 30 seconds and retrying.".format(repr(e)))
+                sleep(30)
+        return result
 
     def job_property_changed(self, job_property=None):  # check on a specific property or pass None to check all
         if self.previous_job_properties is None:
@@ -57,21 +105,10 @@ class JobRunner:
             else:
                 return self.job_properties[job_property] != self.previous_job_properties[job_property]
 
-    def safe_query(self, query):
-        retry = True  # just to start the loop, even though the first try isn't a retry
-        while retry:
-            try:
-                self.cursor.execute(query)
-                retry = False
-            except Exception as e:
-                print("Exception in MySQL during query:\n\n{0}\n\nException was:\n\n{1}\n\nSleeping 30 seconds and retrying.".format(query, repr(e)))
-                retry = True
-                sleep(30)
-
     def load_job_properties(self):
         if self.readonly:
             self.safe_query("SELECT * FROM job_descriptions WHERE job_name=\"{0}\"".format(self.job_name))
-            self.job_properties = self.cursor.fetchone()
+            self.job_properties = self.safe_fetchone()
             self.fish_labels, self.fish_species = self.fish_groups[self.job_properties['fish_group']]
             self.fishes = [FishConstructor(fish_label) for fish_label in self.fish_labels]
             self.build_domain()
@@ -79,12 +116,12 @@ class JobRunner:
             self.opt_iters = self.job_properties['grey_wolf_iterations']
         else:
             self.safe_query("SELECT * FROM job_runners WHERE id={0}".format(self.runner_id))
-            self.runner_properties = self.cursor.fetchone()
+            self.runner_properties = self.safe_fetchone()
             self.job_name = self.runner_properties['current_job_name']
             if self.runner_properties['stopped']:
                 quit("Job runner {0} was manually stopped on machine {1}.".format(self.runner_id, self.machine_name))
             self.safe_query("SELECT * FROM job_descriptions WHERE job_name=\"{0}\"".format(self.job_name))
-            self.job_properties = self.cursor.fetchone()
+            self.job_properties = self.safe_fetchone()
             if self.job_properties is None:
                 quit("ERROR: No job description found with name {0}.".format(self.job_name))
             if self.job_properties['iterations_completed'] >= self.job_properties['max_iterations']:
@@ -214,7 +251,7 @@ class JobRunner:
         print("\nCreating {0} new jobs.\n".format(self.job_properties['batch_size']))
         self.safe_query("UPDATE job_runners SET current_task=\"Creating New Jobs\" WHERE id={0}".format(self.runner_id))
         self.safe_query("SELECT * FROM job_results WHERE objective_value IS NOT NULL AND job_name=\"{0}\"".format(self.job_name))
-        completed_job_data = self.cursor.fetchall()
+        completed_job_data = self.safe_fetchall()
         if len(completed_job_data) >= self.job_properties['max_iterations']:
             print("There are {0} completed iterations out of a maximum {1} requested -- ceasing new job creation.".format(len(completed_job_data), self.job_properties['max_iterations']))
             return
@@ -242,20 +279,20 @@ class JobRunner:
         while True:
             self.load_job_properties()
             self.safe_query("SELECT id FROM job_results WHERE job_name=\"{0}\" LIMIT 1".format(self.job_name))
-            if self.cursor.fetchone() is None:
+            if self.safe_fetchone() is None:
                 self.create_initial_jobs()
             job_data = None
             while job_data is None:
                 self.safe_query("SELECT COUNT(*) AS jobs_waiting FROM job_results WHERE start_time IS NULL AND job_name=\"{0}\"".format(self.job_name))
-                if self.cursor.fetchone()['jobs_waiting'] == round(self.job_properties['batch_size']/2):  # new block to start creating new jobs when old ones are half processed
+                if self.safe_fetchone()['jobs_waiting'] == round(self.job_properties['batch_size']/2):  # new block to start creating new jobs when old ones are half processed
                     self.safe_query("SELECT COUNT(*) AS job_creator_count FROM job_runners WHERE current_task=\"Creating New Jobs\"")
-                    if self.cursor.fetchone()['job_creator_count'] < 2:
+                    if self.safe_fetchone()['job_creator_count'] < 2:
                         self.create_iterated_jobs()
                 self.safe_query("SELECT * FROM job_results WHERE start_time IS NULL AND job_name=\"{0}\" LIMIT 1".format(self.job_name))
-                job_data = self.cursor.fetchone()
+                job_data = self.safe_fetchone()
                 if job_data is None:
                     self.safe_query("SELECT * FROM job_runners WHERE current_task=\"Creating New Jobs\"")
-                    if self.cursor.fetchone() is None:
+                    if self.safe_fetchone() is None:
                         self.create_iterated_jobs()
                     else:
                         self.safe_query("UPDATE job_runners SET current_task=\"Awaiting New Job Creation\" WHERE id={0}".format(self.runner_id))

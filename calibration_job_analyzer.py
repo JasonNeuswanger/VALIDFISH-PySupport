@@ -216,10 +216,9 @@ for fish in runner.fishes:
 # and then see if predicted optimal velocities match observations after fitting the model based
 # solely on the other considerations?
 
-test_fish = runner.fishes[1]
-fig3d = test_fish.plot_predicted_detection_field_3D(colorMax=None, gridsize=80j, bgcolor=(0, 0, 0), surfaces=False)
+test_fish = runner.fishes[6]
+fig3d = test_fish.plot_predicted_detection_field_3D(colorMax=None, gridsize=80j, bgcolor=(0, 0, 0), surfaces=False, velocities=False)
 
-test_fish = runner.fishes[0]
 test_fish.plot_predicted_detection_field_2D()
 
 
