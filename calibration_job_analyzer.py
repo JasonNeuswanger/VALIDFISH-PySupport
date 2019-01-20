@@ -12,7 +12,7 @@ from job_runner import JobRunner
 export_plots = True
 show_plots = False
 
-job_name = 'Fifteen5'
+job_name = 'Fifteen6'
 runner = JobRunner(job_name, readonly=True)
 
 figure_folder = os.path.join(os.path.sep, 'Users', 'Jason', 'Desktop', 'TempFig', job_name)
@@ -147,7 +147,10 @@ for i in range(len(param_names)):
         plt.xlim(*runner.scaled_parameter_bounds[x_param])
         plt.ylim(*runner.scaled_parameter_bounds[y_param])
         if export_plots: plt.savefig(os.path.join(figure_folder, "Joint_{0}_{1}.pdf".format(x_param, y_param)))
-        if show_plots: plt.show()
+        if show_plots:
+            plt.show()
+        else:
+            plt.close()
 
 # Plot distributions of individual parameter values tested
 
@@ -161,7 +164,10 @@ for param in param_names:
     x_label = "log10({0})".format(param) if cf.is_parameter_log_scaled(x_param_enum) else param
     g.set_axis_labels(x_label, 'objective function value')
     if export_plots: plt.savefig(os.path.join(figure_folder, "Single_{0}.pdf".format(param)))
-    if show_plots: plt.show()
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
 
 # todo I should try to set parameters so that values on the low end of the range correspond
 # todo to small/no effect, and values on the high end of the range a large effect. Just
@@ -216,50 +222,60 @@ for fish in runner.fishes:
 # and then see if predicted optimal velocities match observations after fitting the model based
 # solely on the other considerations?
 
-test_fish = runner.fishes[6]
+# fish 2 is insufficiently forward-directed
+# fish 3 is too forward-directed
+# dollies generally are slightly insufficiently forward-directed
+
+# for grayling, i need to check if discrimination is unrealistically hard, and if making it easier would
+# give better bounds of profitability an lead to realistic foraging
+
+# are fish still generally eating smaller stuff than predicted, especially chinook?
+# consider Bayesian estimation of drift AND item energy contents, maybe try it out predicting subsamples?
+# I'm getting occasional weird results on profitability of larger size classes because they're worth less energy due to
+# the specific taxonomic composition of a fairly small net sample that probably doesn't reflect the fish's thinking.
+
+# I want some kind of plotting function to look at the fit quality at a glance.
+
+# Why are the foraging distribution distances fairly low even for fairly poor fits?
+
+# Can I estimate velocity better?
+
+# Loom effect seems closed to maxed out despite having a pretty small effect... allow it to be larger?
+
+# TRY NEW OPTIMIZATION ALGORITHM FROM WANG ET AL 2018, ENSEMBLE BAYESIAN OPTIMIZATION
+# https://github.com/zi-w/Ensemble-Bayesian-Optimization
+
+
+# NEW PLOT TO DO: Strategy vs NREI -- how do I not have this already?
+
+
+test_fish = runner.fishes[0]
+test_fish.plot_predicted_detection_field_2D(show=False, figure_folder="/Users/Jason/Desktop/")
+test_fish.plot_predicted_depletion_field_2D(show=False, figure_folder="/Users/Jason/Desktop/")
+
+
+test_fish.map_tau_effects()
+test_fish.map_discrimination_model()
+
+
+test_fish.export_full_analysis(base_folder="/Users/Jason/Desktop/TempFig/", job_name=job_name)
+
+
 fig3d = test_fish.plot_predicted_detection_field_3D(colorMax=None, gridsize=80j, bgcolor=(0, 0, 0), surfaces=False, velocities=False)
 
-test_fish.plot_predicted_detection_field_2D()
 
 
 fig3d = test_fish.plot_predicted_depletion_field_3D(colorMax=None, gridsize=80j, bgcolor=(0, 0, 0), surfaces=False)
 
-from seaborn import hls_palette, set_style
 
-def plot_predicted_detection_field_2D(self, **kwargs):
-    # Do a 2-D plot fixed at z=0 for easier visualization unless specified, of the pattern of
-    # drift depletion throughout a fish's volume and behind it, in terms of energy (J) available
-    # from all prey classes combined.
-    plot_z = 0 if 'z' not in kwargs.keys() else kwargs['z']
-    numpts = 200 if 'numpts' not in kwargs.keys() else kwargs['numpts']
-    r = self.cforager.get_max_radius()
-    x = np.linspace(-r, r, numpts)
-    y = np.linspace(-r, r, numpts)
-    xg, yg = np.meshgrid(x, y)
-    zg = np.empty(np.shape(xg))
-    for i in range(len(x)):
-        for j in range(len(y)):
-            if x[i] ** 2 + y[j] ** 2 > r ** 2:
-                zg[j, i] = np.nan
-            else:
-                zg[j, i] = self.cforager.relative_pursuits_by_position(x[i], y[j], plot_z)
-    set_style('white')
-    efig, (ax) = plt.subplots(1, 1, facecolor='w', figsize=(3.25, 2.6), dpi=300)
-    plt.axhline(color='0.5', linewidth=0.1)
-    plt.axvline(color='0.5', linewidth=0.1)
-    cf = ax.contourf(xg, yg, zg, 20, cmap='viridis_r')
-    efig.colorbar(cf, ax=ax, shrink=0.9)
-    plt.title('Relative pursuits (top view at z={0})'.format(plot_z))
-    plt.xlabel('x (m)')
-    plt.ylabel('y (m)')
-    if kwargs.get('show_fielddata', True):
-        (px, py, pz) = np.transpose(np.asarray(self.field_detection_positions))
-        plt.scatter(px, py, s=0.1, c='k')
-    if 'figure_folder' in kwargs: plt.savefig(os.path.join(kwargs['figure_folder'], "Detection Field 2D Top View.pdf"))
-    if kwargs.get('show', True): efig.show()
 
-test_fish = runner.fishes[6]
-test_fish.plot_predicted_detection_field_2D()
+print(test_fish.cforager.format_prey_to_print())
+
+# Large prey with a concentration of 0 are unprofitable because profitability takes into account the probability
+# that an item is prey vs debris, which is based on concentrations and discrimination probabilities, and with
+# concentration of 0 that probability is 0, so all the items in that class are assumed to be unprofitable debris.
+
+test_fish.plot_diet_proportions()
 
 test_fish.cforager.relative_pursuits_by_position(-0.24,0.2,0.0)
 test_fish.cforager.relative_pursuits_by_position(0.24,0.2,0.0)

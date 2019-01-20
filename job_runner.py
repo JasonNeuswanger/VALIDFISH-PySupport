@@ -301,6 +301,5 @@ class JobRunner:
             param_values = [job_data[param] for param in self.parameters_to_optimize]
             obj_value = self.objective_function(job_data['id'], *param_values)
             fquery = "UPDATE job_results SET completed_time=NOW(), objective_value={1}, progress=1.0 WHERE id={0}".format(job_data['id'], obj_value)
-            print(fquery)
             self.safe_query(fquery)
             self.safe_query("UPDATE job_descriptions SET iterations_completed=(SELECT COUNT(*) FROM job_results WHERE job_name=\"{0}\" AND objective_value IS NOT NULL) WHERE job_name=\"{0}\"".format(self.job_name))

@@ -158,9 +158,12 @@ class FieldTestFish:
         predictions /= overall_max
         observations /= overall_max
         observation_cdf = sm.distributions.ECDF(observations)
-        # Now calculate the Wasserstein Distance, the area between the empirical CDFs of the predictions
+        # Now calculate something like the Wasserstein Distance, the area between the empirical CDFs of the predictions
         # and observations, as our measure of how far apart the distributions were.
+        # The main wasserstein differenceis as follows.
         # wd = scipy.stats.wasserstein_distance(predictions, observations)
+        # However, I use a slightly different, customized metric because the predictions aren't discrete points but
+        # a probability field.
         sums = [0]
         i = 0
         for i in range(len(predictions)):
@@ -183,11 +186,15 @@ class FieldTestFish:
             plt.step(plot_x, plot_y_sums, label="Predicted")
             plt.legend(loc=4)
             plt.title('Fish {0}'.format(self.label))
-            plt.figtext(0.8, 0.3, "dist={0:.4f}".format(newmetric))
+            plt.figtext(0.7, 0.3, "dist={0:.4f}".format(newmetric))
             plt.xlabel("Normalized 'relative pursuits by position'")
             plt.ylabel("Proportion of activity at that value or below")
+            plt.tight_layout()
             if 'figure_folder' in kwargs: plt.savefig(os.path.join(kwargs['figure_folder'], "Foraging Point Distribution Distance.pdf"))
-            if kwargs.get('show', True): plt.show()
+            if kwargs.get('show', True):
+                plt.show()
+            else:
+                plt.close()
         return newmetric
 
     def evaluate_fit(self, verbose=True):
@@ -241,12 +248,8 @@ class FieldTestFish:
         observed_NREI = self.fielddata['empirical_NREI_J_per_s']
         objective_value = fa_rate_part + velocity_part + proportion_ingested_part + spatial_part + diet_part
         vprint("NREI: predicted {0:.5f} J/s, observed estimate {1:.5f} J/s. (Prediced gross: {2:.5f}, focal cost: {3:.5f}, maneuver cost: {4:.5f})".format(predicted_NREI, observed_NREI, predicted_GREI, predicted_focal_swimming_cost, predicted_maneuver_cost_rate))
-        # vprint("Objective function value is {0:.5f}. (Contributions: attempt rate {1:.3f}, velocity {2:.3f}, ingestion {3:.3f}, distance {4:.3f}, angle {5:.3f}, diet {6:.3f}).\n".format(
-        #     objective_value, fa_rate_part, velocity_part, proportion_ingested_part, distance_part, angle_part, diet_part))
-        vprint(
-            "Objective function value is {0:.5f}. (Contributions: attempt rate {1:.4f}, velocity {2:.4f}, ingestion {3:.4f}, spatial {4:.4f}, diet {5:.4f}).\n".format(
-                objective_value, fa_rate_part, velocity_part, proportion_ingested_part, spatial_part,
-                diet_part))
+        vprint("Objective function value is {0:.5f}. (Contributions: attempt rate {1:.4f}, velocity {2:.4f}, ingestion {3:.4f}, spatial {4:.4f}, diet {5:.4f}).\n".format(
+                objective_value, fa_rate_part, velocity_part, proportion_ingested_part, spatial_part, diet_part))
         return objective_value
 
     def optimize(self, iterations, pack_size, verbose=True, use_chaos=False, use_dynamic_C=False, use_exponential_decay=False, use_levy=False, use_only_alpha=False, use_weighted_alpha=True):
